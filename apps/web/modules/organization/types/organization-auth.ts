@@ -14,6 +14,7 @@ export const ZOrganizationAuth = z.object({
   isOwner: z.boolean(),
   isManager: z.boolean(),
   isBilling: z.boolean(),
+  isAuditor: z.boolean(),
 });
 
 export type TOrganizationAuth = z.infer<typeof ZOrganizationAuth>;

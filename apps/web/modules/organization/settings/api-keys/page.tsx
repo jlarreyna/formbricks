@@ -4,6 +4,7 @@ import { getUserLocale } from "@/lib/user/service";
 import { getTranslate } from "@/lingodotdev/server";
 import { getOrganizationAuth } from "@/modules/organization/lib/utils";
 import { getWorkspacesByOrganizationId } from "@/modules/organization/settings/api-keys/lib/workspaces";
+import { redirectAuditorRoleFromRestrictedOrgSettings } from "@/modules/settings/lib/redirect-auditor-role";
 import { redirectBillingRoleFromRestrictedOrgSettings } from "@/modules/settings/lib/redirect-billing-role";
 import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
 import { PageHeader } from "@/modules/ui/components/page-header";
@@ -14,6 +15,7 @@ export const APIKeysPage = async (props: Readonly<{ params: Promise<{ organizati
   const t = await getTranslate();
 
   await redirectBillingRoleFromRestrictedOrgSettings(params.organizationId);
+  await redirectAuditorRoleFromRestrictedOrgSettings(params.organizationId);
 
   const { currentUserMembership, organization, session } = await getOrganizationAuth(params.organizationId);
 

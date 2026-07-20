@@ -6,12 +6,12 @@ import {
   ChevronRightIcon,
   FoldersIcon,
   Loader2,
+  MailIcon,
   MessageCircle,
   MessageSquareTextIcon,
   PanelLeftCloseIcon,
   PanelLeftOpenIcon,
   PlusIcon,
-  RocketIcon,
   SettingsIcon,
   UserIcon,
 } from "lucide-react";
@@ -30,7 +30,6 @@ import {
 } from "@/app/(app)/workspaces/[workspaceId]/actions";
 import { NavigationLink } from "@/app/(app)/workspaces/[workspaceId]/components/NavigationLink";
 import { SettingsSidebarContent } from "@/app/(app)/workspaces/[workspaceId]/components/SettingsSidebarContent";
-import { isNewerVersion } from "@/app/(app)/workspaces/[workspaceId]/lib/utils";
 import FBLogo from "@/images/formbricks-wordmark.svg";
 import { cn } from "@/lib/cn";
 import { getBillingFallbackPath } from "@/lib/membership/navigation";
@@ -52,15 +51,12 @@ import { GoBackButton } from "@/modules/ui/components/go-back-button";
 import { ModalButton } from "@/modules/ui/components/upgrade-prompt";
 import { CreateWorkspaceModal } from "@/modules/workspaces/components/create-workspace-modal";
 import { WorkspaceLimitModal } from "@/modules/workspaces/components/workspace-limit-modal";
-import { getLatestStableFbReleaseAction } from "@/modules/workspaces/settings/(setup)/app-connection/actions";
-import packageJson from "../../../../../package.json";
 
 interface NavigationProps {
   user: TUser;
   organization: TOrganization;
   workspace: { id: string; name: string };
   isFormbricksCloud: boolean;
-  isDevelopment: boolean;
   membershipRole?: TOrganizationRole;
   publicDomain: string;
   organizationWorkspacesLimit: number;
@@ -69,6 +65,7 @@ interface NavigationProps {
   responseCount: number;
   newTrialBannerVariant: string | boolean;
   isFormbricksSurveysConfigured: boolean;
+  hasWorkspaceReadWriteAccess: boolean;
 }
 
 export const MainNavigation = ({
@@ -77,7 +74,6 @@ export const MainNavigation = ({
   workspace,
   membershipRole,
   isFormbricksCloud,
-  isDevelopment,
   publicDomain,
   organizationWorkspacesLimit,
   isLicenseActive,
@@ -85,22 +81,24 @@ export const MainNavigation = ({
   responseCount,
   newTrialBannerVariant,
   isFormbricksSurveysConfigured,
+  hasWorkspaceReadWriteAccess,
 }: NavigationProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const { t } = useTranslation();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isTextVisible, setIsTextVisible] = useState(true);
-  const [latestVersion, setLatestVersion] = useState("");
 
   const [isPending, startTransition] = useTransition();
-  const { isManager, isOwner, isBilling } = getAccessFlags(membershipRole);
+  const { isManager, isOwner, isBilling, isAuditor } = getAccessFlags(membershipRole);
   const isMembershipPending = membershipRole === undefined;
+  const isRestrictedRole = isBilling || isAuditor;
   const disabledNavigationMessage = isMembershipPending
     ? t("common.loading")
     : t("common.you_are_not_authorized_to_perform_this_action");
 
   const isOwnerOrManager = isManager || isOwner;
+  const canAccessEmailCampaigns = isOwnerOrManager || hasWorkspaceReadWriteAccess;
   const isSettingsMode = pathname?.includes("/settings");
 
   const toggleSidebar = () => {
@@ -134,7 +132,7 @@ export const MainNavigation = ({
             icon: MessageCircle,
             isActive: pathname?.includes("/surveys"),
             isHidden: false,
-            disabled: isMembershipPending || isBilling,
+            disabled: isMembershipPending || isRestrictedRole,
           },
           {
             href: `/workspaces/${workspace.id}/contacts`,
@@ -144,7 +142,15 @@ export const MainNavigation = ({
               pathname?.includes("/contacts") ||
               pathname?.includes("/segments") ||
               pathname?.includes("/attributes"),
-            disabled: isMembershipPending || isBilling,
+            disabled: isMembershipPending || isRestrictedRole,
+          },
+          {
+            name: t("workspace.email_campaigns.nav_title"),
+            href: `/workspaces/${workspace.id}/emails`,
+            icon: MailIcon,
+            isActive: pathname?.includes("/emails"),
+            isHidden: !isMembershipPending && !canAccessEmailCampaigns,
+            disabled: isMembershipPending || isRestrictedRole,
           },
         ],
       },
@@ -169,7 +175,7 @@ export const MainNavigation = ({
             icon: MessageSquareTextIcon,
             isActive: pathname?.includes("/unify/"),
             isHidden: false,
-            disabled: isMembershipPending || isBilling,
+            disabled: isMembershipPending || isRestrictedRole,
           },
           {
             name: t("common.analysis"),
@@ -177,23 +183,25 @@ export const MainNavigation = ({
             icon: BarChart3Icon,
             isActive: pathname?.includes("/dashboards") || pathname?.includes("/charts"),
             isHidden: false,
-            disabled: isMembershipPending || isBilling,
+            disabled: isMembershipPending || isRestrictedRole,
           },
         ],
       },
     ],
-    [t, workspace.id, pathname, isMembershipPending, isBilling]
+    [t, workspace.id, pathname, isMembershipPending, isRestrictedRole, canAccessEmailCampaigns]
   );
 
   const settingsNavigationItem = useMemo(
     () => ({
       name: t("common.settings"),
-      href: `/workspaces/${workspace.id}/settings/workspace/general`,
+      href: isAuditor
+        ? `/organizations/${organization.id}/settings/audit`
+        : `/workspaces/${workspace.id}/settings/workspace/general`,
       icon: SettingsIcon,
-      isActive: isSettingsMode,
+      isActive: isSettingsMode || (isAuditor && pathname?.includes("/settings/audit")),
       disabled: isMembershipPending || isBilling,
     }),
-    [t, workspace.id, isSettingsMode, isMembershipPending, isBilling]
+    [t, workspace.id, organization.id, isSettingsMode, isMembershipPending, isBilling, isAuditor, pathname]
   );
 
   const [isWorkspaceDropdownOpen, setIsWorkspaceDropdownOpen] = useState(false);
@@ -224,21 +232,6 @@ export const MainNavigation = ({
     }
   }, [isOrganizationDropdownOpen, loadOrganizations]);
 
-  useEffect(() => {
-    async function loadReleases() {
-      const res = await getLatestStableFbReleaseAction();
-      if (res?.data) {
-        const latestVersionTag = res.data;
-        const currentVersionTag = `v${packageJson.version}`;
-
-        if (isNewerVersion(currentVersionTag, latestVersionTag)) {
-          setLatestVersion(latestVersionTag);
-        }
-      }
-    }
-    if (isOwnerOrManager) loadReleases();
-  }, [isOwnerOrManager]);
-
   const trialDaysRemaining = useMemo(() => {
     if (!isFormbricksCloud || organization.billing?.stripe?.subscriptionStatus !== "trialing") return null;
     const trialEnd = organization.billing.stripe.trialEnd;
@@ -255,7 +248,9 @@ export const MainNavigation = ({
 
   const mainNavigationLink = isBilling
     ? getBillingFallbackPath(organization.id, isFormbricksCloud)
-    : `/workspaces/${workspace.id}/surveys/`;
+    : isAuditor
+      ? `/organizations/${organization.id}/settings/audit`
+      : `/workspaces/${workspace.id}/surveys/`;
 
   const handleWorkspaceChange = (workspaceId: string) => {
     const targetPath =
@@ -481,23 +476,6 @@ export const MainNavigation = ({
           <div>
             {!isSettingsMode && (
               <>
-                {/* New Version Available */}
-                {!isCollapsed &&
-                  isOwnerOrManager &&
-                  latestVersion &&
-                  !isFormbricksCloud &&
-                  !isDevelopment && (
-                    <Link
-                      href="https://github.com/formbricks/formbricks/releases"
-                      target="_blank"
-                      className="m-2 flex items-center gap-x-4 rounded-lg border border-slate-200 bg-slate-100 p-2 text-sm text-slate-800 hover:border-slate-300 hover:bg-slate-200">
-                      <p className="flex items-center justify-center gap-x-2 text-xs">
-                        <RocketIcon strokeWidth={1.5} className="mx-1 size-6 text-slate-900" />
-                        {t("common.new_version_available", { version: latestVersion })}
-                      </p>
-                    </Link>
-                  )}
-
                 {/* Trial Days Remaining */}
                 {!isCollapsed &&
                   isFormbricksCloud &&

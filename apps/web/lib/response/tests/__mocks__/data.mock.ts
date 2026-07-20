@@ -78,6 +78,7 @@ export const mockResponse: ResponseMock = {
   variables: {},
   endingId: null,
   displayId: null,
+  analysis: null,
 };
 
 const mockSurveyQuota: TSurveyQuota = {
@@ -150,6 +151,7 @@ export const mockResponses: ResponseMock[] = [
     tags: getMockTags(["tag1", "tag3"]),
     endingId: null,
     displayId: null,
+    analysis: null,
   },
   {
     id: "clsk8db0r001kk8iujkn32q8g",
@@ -176,6 +178,7 @@ export const mockResponses: ResponseMock[] = [
     tags: getMockTags(["tag1", "tag2"]),
     endingId: null,
     displayId: null,
+    analysis: null,
   },
   {
     id: "clsk7b15p001fk8iu04qpvo2f",
@@ -201,6 +204,7 @@ export const mockResponses: ResponseMock[] = [
     language: null,
     endingId: null,
     displayId: null,
+    analysis: null,
   },
   {
     id: "clsk6bk1l0017k8iut9dp0uxt",
@@ -226,6 +230,7 @@ export const mockResponses: ResponseMock[] = [
     language: null,
     endingId: null,
     displayId: null,
+    analysis: null,
   },
   {
     id: "clsk5tgkm000uk8iueqoficwc",
@@ -251,6 +256,7 @@ export const mockResponses: ResponseMock[] = [
     language: null,
     endingId: null,
     displayId: null,
+    analysis: null,
   },
 ];
 
@@ -357,6 +363,9 @@ export const getFilteredMockResponses = (
       ...response,
       contact: response.contact ? { id: response.contact.id, userId: mockUserId } : null,
       tags: response.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+      // Mocks never set an analysis payload; the raw Prisma column type (string-typed enums) is
+      // never actually populated here, so it's safe to narrow it to TResponse's literal unions.
+      analysis: response.analysis as TResponse["analysis"],
     }));
   }
 

@@ -33,7 +33,7 @@ That's it! After running the command and providing the required information, vis
 The stack includes the [Formbricks Hub](https://github.com/formbricks/hub) API (`ghcr.io/formbricks/hub`) and the bundled Cube service. Hub and Cube share the same database as Formbricks by default and both start as part of the baseline `docker compose up`.
 
 - **Migrations**: A `formbricks-migrate` service runs Formbricks Prisma migrations before `hub-migrate` writes Hub tables to the shared database. `hub-migrate` then runs Hub's database migrations (goose + river) before the Hub API starts. Both migration services run on every `docker compose up` and are idempotent.
-- **Production** (`docker/docker-compose.yml`): Set non-empty `HUB_API_KEY` and `CUBEJS_API_SECRET` in `.env` before starting the stack. `docker compose config >/dev/null` validates compose syntax, but missing secrets are reported by the service that needs them at startup. `HUB_API_URL` defaults to `http://hub:8080` and `CUBEJS_API_URL` defaults to `http://cube:4000` so the Formbricks app reaches Hub and Cube inside the compose network. Cube JWT issuer/audience default to `formbricks-web` and `formbricks-cube`, and the bundled Cube service exposes only `meta,data` API scopes. Override `HUB_DATABASE_URL` and `CUBEJS_DB_*` only if Hub or Cube should use a separate database. The Hub image tracks `:latest` by default so `formbricks.sh update` advances Hub in lockstep with the app. `hub` and `hub-migrate` always resolve to the same image. To pin to an immutable reference, set `HUB_IMAGE_REF` in `docker/.env` to either a tag (e.g. `:0.3.0`) or a digest (e.g. `@sha256:14db7b3d...`).
+- **Production** (`docker/docker-compose.yml`): Set non-empty `HUB_API_KEY` and `CUBEJS_API_SECRET` in `.env` before starting the stack. `docker compose config >/dev/null` validates compose syntax, but missing secrets are reported by the service that needs them at startup. `HUB_API_URL` defaults to `http://hub:8080` and `CUBEJS_API_URL` defaults to `http://cube:4000` so the Formbricks app reaches Hub and Cube inside the compose network. Cube JWT issuer/audience default to `formbricks-web` and `formbricks-cube`, and the bundled Cube service exposes only `meta,data` API scopes. Override `HUB_DATABASE_URL` and `CUBEJS_DB_*` only if Hub or Cube should use a separate database. The Hub image tracks `:latest` by default so `formbricks.sh update` advances Hub in lockstep with the app. `hub`, `hub-worker`, and `hub-migrate` always resolve to the same image. To pin to an immutable reference, set `HUB_IMAGE_REF` in `docker/.env` to either a tag (e.g. `:0.3.0`) or a digest (e.g. `@sha256:14db7b3d...`). Hub embeddings are disabled unless `EMBEDDING_PROVIDER` and `EMBEDDING_MODEL` are set in `.env` (passed to both `hub` and `hub-worker`); see the [Hub embeddings environment reference](https://hub.formbricks.com/reference/environment-variables/#embeddings).
 - **Development** (`docker-compose.dev.yml`): Hub uses a dedicated local `hub` database and `HUB_API_KEY` defaults to `dev-api-key`. The dev stack starts `hub` plus `hub-worker`; set `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, and any provider credentials in the repo root `.env` to enable Hub embeddings locally. See the [Hub embeddings environment reference](https://hub.formbricks.com/reference/environment-variables/#embeddings) for provider-specific values. Cube starts with the dev stack, `CUBEJS_API_URL` defaults to `http://localhost:4000`, and `pnpm dev:setup` generates `CUBEJS_API_SECRET` in the repo root `.env`. The Hub image is pinned to a semver tag (`hub`, `hub-worker`, and `hub-migrate` share the same value); override `HUB_IMAGE_TAG` in the repo root `.env` to test a specific Hub release.
 
 ## Smart Functionality AI with Qwen/vLLM
@@ -81,11 +81,18 @@ If you run your own Qwen/vLLM service, do not enable the `qwen` profile. Set `AI
 
 ## AI Taxonomy Beta
 
-The standalone AI taxonomy service is included as an opt-in Docker Compose profile. Baseline installs are unchanged: `docker compose up -d` starts Formbricks, Hub, and Cube, but not taxonomy.
+The standalone AI taxonomy service is included as an opt-in Docker Compose profile. Baseline installs are unchanged: `docker compose up -d` starts Formbricks, Hub, hub-worker, and Cube, but not taxonomy.
+
+Taxonomy also requires Hub embeddings (`EMBEDDING_PROVIDER` + `EMBEDDING_MODEL` and provider credentials). Without embeddings configured, Hub returns `503` on taxonomy field listing.
 
 To enable taxonomy in Docker Compose, add the required values to `.env`:
 
 ```bash
+# Hub embeddings (required for taxonomy)
+EMBEDDING_PROVIDER=openai
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_PROVIDER_API_KEY=<provider-api-key>
+
 # Use COMPOSE_PROFILES=taxonomy when taxonomy points at your own LLM endpoint.
 # Use COMPOSE_PROFILES=qwen,taxonomy when taxonomy should share the bundled Qwen/vLLM service.
 COMPOSE_PROFILES=qwen,taxonomy

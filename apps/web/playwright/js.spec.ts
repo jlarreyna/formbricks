@@ -105,7 +105,7 @@ test.describe("JS Package Test", async () => {
     await expect(page.locator("#formbricks-modal-container")).toHaveCount(1, { timeout: 120000 });
     await expect(
       page.locator("#questionCard-0").getByRole("link", { name: "Powered by Formbricks" })
-    ).toBeVisible();
+    ).toHaveCount(0);
 
     // Fill the survey
     await page.getByRole("button", { name: "Happy to help!" }).click();

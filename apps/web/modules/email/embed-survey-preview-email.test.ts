@@ -81,7 +81,8 @@ const expectSharedPreviewSignals = (html: string) => {
   expect(html).toContain(
     `${EMBED_SURVEY_PREVIEW_QUESTION_ID}=${encodeURIComponent(EMBED_SURVEY_PREVIEW_CHOICE_IDS.pineapples)}`
   );
-  expect(html).toContain("utm_source=email_branding");
+  expect(html).not.toContain("utm_source=email_branding");
+  expect(html).not.toContain("Powered by Formbricks");
 };
 
 const expectPreviewFragmentBaseSignals = (html: string) => {

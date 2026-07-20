@@ -7,6 +7,7 @@ import { PrismaErrorType } from "@formbricks/database/types/error";
 import { logger } from "@formbricks/logger";
 import { ZId, ZOptionalNumber, ZString } from "@formbricks/types/common";
 import { DatabaseError, ResourceNotFoundError } from "@formbricks/types/errors";
+import { TResponseAnalysis } from "@formbricks/types/response-analysis";
 import {
   TResponse,
   TResponseContact,
@@ -81,6 +82,23 @@ export const responseSelection = {
       },
     },
   },
+  analysis: {
+    select: {
+      sentiment: true,
+      sentimentScore: true,
+      severity: true,
+      confidence: true,
+      categories: true,
+      topics: true,
+      keywords: true,
+      emotion: true,
+      customerEffort: true,
+      requiresFollowup: true,
+      recommendedDepartment: true,
+      recommendedPriority: true,
+      summary: true,
+    },
+  },
 } satisfies Prisma.ResponseSelect;
 
 export const getResponseContact = (
@@ -95,12 +113,38 @@ export const getResponseContact = (
   };
 };
 
+// Prisma persists the analysis classifications (sentiment, severity, ...) as plain `String`
+// columns (rather than DB enums) so the LLM's canonical vocabulary can evolve without a
+// migration. This helper narrows that Prisma shape onto the app's typed TResponseAnalysis; the
+// values are trusted because they're only ever written by processResponseAnalysisJob, which
+// validates the LLM output against ZResponseAnalysisPayload before persisting.
+type TResponseAnalysisPrismaShape = {
+  sentiment: string;
+  sentimentScore: number;
+  severity: string;
+  confidence: number;
+  categories: string[];
+  topics: string[];
+  keywords: string[];
+  emotion: string;
+  customerEffort: string;
+  requiresFollowup: boolean;
+  recommendedDepartment: string;
+  recommendedPriority: string;
+  summary: string;
+} | null;
+
+export const mapResponseAnalysis = (
+  analysisPrisma: TResponseAnalysisPrismaShape
+): TResponseAnalysis | null => (analysisPrisma ? (analysisPrisma as TResponseAnalysis) : null);
+
 const mapResponsePrismaToResponse = (
   responsePrisma: Prisma.ResponseGetPayload<{ select: typeof responseSelection }>
 ): TResponse => ({
   ...responsePrisma,
   contact: getResponseContact(responsePrisma),
   tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+  analysis: mapResponseAnalysis(responsePrisma.analysis),
 });
 
 export const getResponsesByContactId = reactCache(
@@ -151,6 +195,7 @@ export const getResponsesByContactId = reactCache(
 
             tags: response.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
             quotas: response.quotaLinks.map((quotaLinkPrisma) => quotaLinkPrisma.quota),
+            analysis: mapResponseAnalysis(response.analysis),
           });
         })
       );
@@ -383,6 +428,7 @@ export const getResponses = reactCache(
           contact: getResponseContact(responsePrisma),
           tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
           quotas: quotaLinks.map((quotaLinkPrisma) => quotaLinkPrisma.quota),
+          analysis: mapResponseAnalysis(responsePrisma.analysis),
         };
       });
 
@@ -526,6 +572,7 @@ export const getResponsesByWorkspaceId = reactCache(
             ...responsePrisma,
             contact: getResponseContact(responsePrisma),
             tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+            analysis: mapResponseAnalysis(responsePrisma.analysis),
           };
         })
       );
@@ -602,6 +649,7 @@ export const updateResponse = async (
       ...responsePrisma,
       contact: getResponseContact(responsePrisma),
       tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+      analysis: mapResponseAnalysis(responsePrisma.analysis),
     };
 
     return response;
@@ -688,6 +736,7 @@ export const deleteResponse = async (
         ...responseWithoutQuotas,
         contact: getResponseContact(responsePrisma),
         tags: responseWithoutQuotas.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+        analysis: mapResponseAnalysis(responseWithoutQuotas.analysis),
       };
 
       if (response.displayId) {

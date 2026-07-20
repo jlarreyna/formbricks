@@ -1,6 +1,7 @@
 import { ITEMS_PER_PAGE } from "@/lib/constants";
 import { getTranslate } from "@/lingodotdev/server";
 import { ContactsPageLayout } from "@/modules/ee/contacts/components/contacts-page-layout";
+import { CreateContactButton } from "@/modules/ee/contacts/components/create-contact-button";
 import { UploadContactsCSVButton } from "@/modules/ee/contacts/components/upload-contacts-button";
 import { getContactAttributeKeys } from "@/modules/ee/contacts/lib/contact-attribute-keys";
 import { getContacts } from "@/modules/ee/contacts/lib/contacts";
@@ -23,7 +24,10 @@ export const ContactsPage = async ({ params: paramsProps }: { params: Promise<{ 
   const initialContacts = await getContacts(workspace.id, 0);
 
   const AddContactsButton = (
-    <UploadContactsCSVButton workspaceId={workspace.id} contactAttributeKeys={contactAttributeKeys} />
+    <div className="flex items-center gap-2">
+      <CreateContactButton workspaceId={workspace.id} contactAttributeKeys={contactAttributeKeys} />
+      <UploadContactsCSVButton workspaceId={workspace.id} contactAttributeKeys={contactAttributeKeys} />
+    </div>
   );
 
   return (

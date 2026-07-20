@@ -10,6 +10,8 @@ const mockGetJobsQueueingConfig = vi.fn();
 const mockGetJobsWorkerBootstrapConfig = vi.fn();
 const mockProcessResponsePipelineJob = vi.fn();
 const mockProcessSurveySchedulingJob = vi.fn();
+const mockProcessEmailCampaignRecipientJob = vi.fn();
+const mockProcessResponseAnalysisJob = vi.fn();
 const TEST_TIMEOUT_MS = 15_000;
 
 const slowTest = (name: string, fn: () => Promise<void>): void => {
@@ -42,6 +44,14 @@ vi.mock("@/modules/response-pipeline/lib/process-response-pipeline-job", () => (
 
 vi.mock("@/modules/survey/scheduling/lib/process-survey-scheduling-job", () => ({
   processSurveySchedulingJob: mockProcessSurveySchedulingJob,
+}));
+
+vi.mock("@/modules/ee/email-campaigns/lib/process-email-campaign-recipient-job", () => ({
+  processEmailCampaignRecipientJob: mockProcessEmailCampaignRecipientJob,
+}));
+
+vi.mock("@/modules/ee/response-analysis/lib/process-response-analysis-job", () => ({
+  processResponseAnalysisJob: mockProcessResponseAnalysisJob,
 }));
 
 describe("instrumentation-jobs", () => {
@@ -108,6 +118,8 @@ describe("instrumentation-jobs", () => {
       jobHandlerOverrides: {
         "response-pipeline.process": expect.any(Function),
         "survey-scheduling.reconcile": expect.any(Function),
+        "email-campaign-recipient.process": expect.any(Function),
+        "response-analysis.process": expect.any(Function),
         "test-log.process": mockExistingOverride,
       },
       redisUrl: "redis://localhost:6379",
@@ -116,6 +128,8 @@ describe("instrumentation-jobs", () => {
     const overrides = mockStartJobsRuntime.mock.calls[0]?.[0]?.jobHandlerOverrides;
     const responsePipelineOverride = overrides?.["response-pipeline.process"];
     const surveySchedulingOverride = overrides?.["survey-scheduling.reconcile"];
+    const emailCampaignRecipientOverride = overrides?.["email-campaign-recipient.process"];
+    const responseAnalysisOverride = overrides?.["response-analysis.process"];
 
     await responsePipelineOverride?.(
       {
@@ -140,6 +154,65 @@ describe("instrumentation-jobs", () => {
         attempt: 1,
         jobId: "job_456",
         jobName: "survey-scheduling.reconcile",
+        maxAttempts: 3,
+        queueName: "background-jobs",
+      }
+    );
+    await emailCampaignRecipientOverride?.(
+      {
+        campaignId: "campaign_123",
+        recipientId: "recipient_123",
+      },
+      {
+        attempt: 1,
+        jobId: "job_789",
+        jobName: "email-campaign-recipient.process",
+        maxAttempts: 3,
+        queueName: "background-jobs",
+      }
+    );
+
+    expect(mockProcessEmailCampaignRecipientJob).toHaveBeenCalledWith(
+      {
+        campaignId: "campaign_123",
+        recipientId: "recipient_123",
+      },
+      {
+        attempt: 1,
+        jobId: "job_789",
+        jobName: "email-campaign-recipient.process",
+        maxAttempts: 3,
+        queueName: "background-jobs",
+      }
+    );
+
+    await responseAnalysisOverride?.(
+      {
+        responseId: "response_123",
+        surveyId: "survey_123",
+        workspaceId: "ws_123",
+        organizationId: "org_123",
+      },
+      {
+        attempt: 1,
+        jobId: "job_101",
+        jobName: "response-analysis.process",
+        maxAttempts: 3,
+        queueName: "background-jobs",
+      }
+    );
+
+    expect(mockProcessResponseAnalysisJob).toHaveBeenCalledWith(
+      {
+        responseId: "response_123",
+        surveyId: "survey_123",
+        workspaceId: "ws_123",
+        organizationId: "org_123",
+      },
+      {
+        attempt: 1,
+        jobId: "job_101",
+        jobName: "response-analysis.process",
         maxAttempts: 3,
         queueName: "background-jobs",
       }

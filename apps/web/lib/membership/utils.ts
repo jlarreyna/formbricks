@@ -5,12 +5,14 @@ export const getAccessFlags = (role?: TOrganizationRole) => {
   const isManager = role === "manager";
   const isBilling = role === "billing";
   const isMember = role === "member";
+  const isAuditor = role === "auditor";
 
   return {
     isManager,
     isOwner,
     isBilling,
     isMember,
+    isAuditor,
   };
 };
 

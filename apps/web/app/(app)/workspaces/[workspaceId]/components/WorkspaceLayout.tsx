@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { ResourceNotFoundError } from "@formbricks/types/errors";
 import { MainNavigation } from "@/app/(app)/workspaces/[workspaceId]/components/MainNavigation";
 import { TopControlBar } from "@/app/(app)/workspaces/[workspaceId]/components/TopControlBar";
-import { IS_DEVELOPMENT, IS_FORMBRICKS_CLOUD, IS_FORMBRICKS_SURVEYS_CONFIGURED } from "@/lib/constants";
+import { IS_FORMBRICKS_CLOUD, IS_FORMBRICKS_SURVEYS_CONFIGURED } from "@/lib/constants";
 import { getPublicDomain } from "@/lib/getPublicUrl";
 import { getAccessFlags } from "@/lib/membership/utils";
 import { getPostHogFeatureFlag } from "@/lib/posthog/get-feature-flag";
@@ -10,6 +10,7 @@ import { getTranslate } from "@/lingodotdev/server";
 import { TrialEndingWarningModal } from "@/modules/ee/billing/components/trial-ending-warning-modal";
 import { TrialResponseWarningModal } from "@/modules/ee/billing/components/trial-response-warning-modal";
 import { getOrganizationWorkspacesLimit } from "@/modules/ee/license-check/lib/utils";
+import { getTeamPermissionFlags } from "@/modules/ee/teams/utils/teams";
 import { LimitsReachedBanner } from "@/modules/ui/components/limits-reached-banner";
 import { PendingDowngradeBanner } from "@/modules/ui/components/pending-downgrade-banner";
 import { TWorkspaceLayoutData } from "@/modules/workspaces/types/workspace-auth";
@@ -71,6 +72,7 @@ export const WorkspaceLayout = async ({ layoutData, children }: WorkspaceLayoutP
 
   // Calculate derived values (no queries)
   const { isMember, isOwner, isManager } = getAccessFlags(membership.role);
+  const { hasReadWriteAccess } = getTeamPermissionFlags(workspacePermission);
 
   const { features, lastChecked, isPendingDowngrade, active, status } = license;
   const isMultiOrgEnabled = features?.isMultiOrgEnabled ?? false;
@@ -146,7 +148,6 @@ export const WorkspaceLayout = async ({ layoutData, children }: WorkspaceLayoutP
           user={user}
           workspace={{ id: workspace.id, name: workspace.name }}
           isFormbricksCloud={IS_FORMBRICKS_CLOUD}
-          isDevelopment={IS_DEVELOPMENT}
           membershipRole={membership.role}
           publicDomain={publicDomain}
           organizationWorkspacesLimit={organizationWorkspacesLimit}
@@ -155,6 +156,7 @@ export const WorkspaceLayout = async ({ layoutData, children }: WorkspaceLayoutP
           responseCount={responseCount}
           newTrialBannerVariant={newTrialBannerVariant}
           isFormbricksSurveysConfigured={IS_FORMBRICKS_SURVEYS_CONFIGURED}
+          hasWorkspaceReadWriteAccess={hasReadWriteAccess}
         />
         <div id="mainContent" className="flex flex-1 flex-col overflow-hidden bg-slate-50">
           <TopControlBar

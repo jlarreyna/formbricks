@@ -16,3 +16,7 @@ export const workspaceSettingsPath = (workspaceId: string, slug: string): string
 // organization-level concern, so it resolves to the org-scoped billing/enterprise page.
 export const getOrganizationBillingPath = (organizationId: string, isFormbricksCloud: boolean): string =>
   organizationSettingsPath(organizationId, isFormbricksCloud ? "billing" : "enterprise");
+
+// Home page for auditor-role users (organization audit settings).
+export const getOrganizationAuditPath = (organizationId: string): string =>
+  organizationSettingsPath(organizationId, "audit");

@@ -20,6 +20,8 @@ import {
   toBullMQRepeatOptions,
 } from "@/src/schedules";
 import {
+  type TEmailCampaignRecipientJobData,
+  type TResponseAnalysisJobData,
   type TResponsePipelineJobData,
   type TSurveySchedulingJobData,
   type TTestLogJobData,
@@ -241,6 +243,32 @@ export const enqueueSurveySchedulingJob = async (data: TSurveySchedulingJobData)
   }
 };
 
+export const enqueueEmailCampaignRecipientJob = async (
+  data: TEmailCampaignRecipientJobData
+): Promise<Job> => {
+  try {
+    return await enqueueBackgroundJob(JOB_NAMES.emailCampaignRecipient, data);
+  } catch (error) {
+    logger.error(
+      { err: error, jobName: JOB_NAMES.emailCampaignRecipient },
+      "Failed to enqueue BullMQ email campaign recipient job"
+    );
+    throw error;
+  }
+};
+
+export const enqueueResponseAnalysisJob = async (data: TResponseAnalysisJobData): Promise<Job> => {
+  try {
+    return await enqueueBackgroundJob(JOB_NAMES.responseAnalysis, data);
+  } catch (error) {
+    logger.error(
+      { err: error, jobName: JOB_NAMES.responseAnalysis },
+      "Failed to enqueue BullMQ response analysis job"
+    );
+    throw error;
+  }
+};
+
 export const scheduleTestLogJobAt = async (
   schedule: TRunAtBackgroundJobSchedule,
   data: TTestLogJobData
@@ -375,6 +403,8 @@ export const getBackgroundJobProducer = (): BackgroundJobProducer => ({
   enqueueResponsePipeline: async (data) => toEnqueuedJob(await enqueueResponsePipelineJob(data)),
   enqueueSurveyScheduling: async (data) => toEnqueuedJob(await enqueueSurveySchedulingJob(data)),
   enqueueTestLog: async (data) => toEnqueuedJob(await enqueueTestLogJob(data)),
+  enqueueEmailCampaignRecipient: async (data) => toEnqueuedJob(await enqueueEmailCampaignRecipientJob(data)),
+  enqueueResponseAnalysis: async (data) => toEnqueuedJob(await enqueueResponseAnalysisJob(data)),
   scheduleResponsePipelineAt: async (schedule, data) =>
     toEnqueuedJob(await scheduleResponsePipelineJobAt(schedule, data)),
   scheduleSurveySchedulingAt: async (schedule, data) =>

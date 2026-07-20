@@ -61,6 +61,7 @@ describe("auth", () => {
         isManager: false,
         isBilling: false,
         isMember: false,
+        isAuditor: false,
       });
 
       const result = await verifyUserRoleAccess("org1", "user1");
@@ -86,6 +87,7 @@ describe("auth", () => {
         isManager: true,
         isBilling: false,
         isMember: false,
+        isAuditor: false,
       });
 
       const result = await verifyUserRoleAccess("org1", "user1");
@@ -111,6 +113,7 @@ describe("auth", () => {
         isManager: false,
         isBilling: false,
         isMember: true,
+        isAuditor: false,
       });
 
       const result = await verifyUserRoleAccess("org1", "user1");

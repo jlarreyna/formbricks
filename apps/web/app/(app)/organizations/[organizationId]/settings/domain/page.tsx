@@ -8,6 +8,7 @@ import { getWhiteLabelPermission } from "@/modules/ee/license-check/lib/utils";
 import { FaviconCustomizationSettings } from "@/modules/ee/whitelabel/favicon-customization/components/favicon-customization-settings";
 import { getOrganizationAuth } from "@/modules/organization/lib/utils";
 import { getSettingsLayoutData } from "@/modules/settings/lib/navigation-data";
+import { redirectAuditorRoleFromRestrictedOrgSettings } from "@/modules/settings/lib/redirect-auditor-role";
 import { redirectBillingRoleFromRestrictedOrgSettings } from "@/modules/settings/lib/redirect-billing-role";
 import { getSurveysWithSlugsByOrganizationId } from "@/modules/survey/lib/slug";
 import { Alert, AlertDescription } from "@/modules/ui/components/alert";
@@ -23,6 +24,7 @@ const Page = async (props: Readonly<{ params: Promise<{ organizationId: string }
   }
 
   await redirectBillingRoleFromRestrictedOrgSettings(params.organizationId);
+  await redirectAuditorRoleFromRestrictedOrgSettings(params.organizationId);
 
   const { session, organization, isOwner, isManager } = await getOrganizationAuth(params.organizationId);
   if (!session) {

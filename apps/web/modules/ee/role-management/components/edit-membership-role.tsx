@@ -94,7 +94,7 @@ export function EditMembershipRole({
     let roles: string[] = ["member"];
 
     if (isOwner) {
-      roles.push("manager", "owner");
+      roles.push("manager", "owner", "auditor");
 
       if (isFormbricksCloud) {
         roles.push("billing");

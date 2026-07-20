@@ -33,6 +33,7 @@ export const ZWorkspaceAuth = z.object({
   isOwner: z.boolean(),
   isManager: z.boolean(),
   isBilling: z.boolean(),
+  isAuditor: z.boolean(),
   hasReadAccess: z.boolean(),
   hasReadWriteAccess: z.boolean(),
   hasManageAccess: z.boolean(),

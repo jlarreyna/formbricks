@@ -5,6 +5,7 @@ import { getTranslate } from "@/lingodotdev/server";
 import { FeedbackDirectoryView } from "@/modules/ee/feedback-directory/components/feedback-directory-view";
 import { getIsFeedbackDirectoriesEnabled } from "@/modules/ee/license-check/lib/utils";
 import { getOrganizationAuth } from "@/modules/organization/lib/utils";
+import { redirectAuditorRoleFromRestrictedOrgSettings } from "@/modules/settings/lib/redirect-auditor-role";
 import { redirectBillingRoleFromRestrictedOrgSettings } from "@/modules/settings/lib/redirect-billing-role";
 import { getOrganizationBillingPath } from "@/modules/settings/lib/routes";
 import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
@@ -16,6 +17,7 @@ export const FeedbackDirectoriesPage = async (props: { params: Promise<{ organiz
   const t = await getTranslate();
 
   await redirectBillingRoleFromRestrictedOrgSettings(params.organizationId);
+  await redirectAuditorRoleFromRestrictedOrgSettings(params.organizationId);
 
   const { currentUserMembership, organization } = await getOrganizationAuth(params.organizationId);
 

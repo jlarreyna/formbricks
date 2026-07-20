@@ -26,6 +26,8 @@ export type AuditLoggingCtx = {
   dashboardId?: string;
   dashboardWidgetId?: string;
   feedbackDirectoryId?: string;
+  emailCampaignId?: string;
+  emailCampaignTemplateId?: string;
 };
 
 export type ActionClientCtx = {

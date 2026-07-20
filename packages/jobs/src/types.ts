@@ -43,3 +43,19 @@ export const ZSurveySchedulingJobData = z.object({
 });
 
 export type TSurveySchedulingJobData = z.infer<typeof ZSurveySchedulingJobData>;
+
+export const ZEmailCampaignRecipientJobData = z.object({
+  campaignId: z.cuid2(),
+  recipientId: z.cuid2(),
+});
+
+export type TEmailCampaignRecipientJobData = z.infer<typeof ZEmailCampaignRecipientJobData>;
+
+export const ZResponseAnalysisJobData = z.object({
+  responseId: z.cuid2(),
+  surveyId: z.cuid2(),
+  workspaceId: z.cuid2(),
+  organizationId: z.cuid2(),
+});
+
+export type TResponseAnalysisJobData = z.infer<typeof ZResponseAnalysisJobData>;

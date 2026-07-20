@@ -30,6 +30,8 @@ export const ZAuditTarget = z.enum([
   "dashboardWidget",
   "cubeQuery",
   "feedbackDirectory",
+  "emailCampaign",
+  "emailCampaignTemplate",
 ]);
 export const ZAuditAction = z.enum([
   "created",

@@ -2,10 +2,16 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { prisma } from "@formbricks/database";
 import { PipelineTriggers, Prisma, type Webhook } from "@formbricks/database/prisma";
-import { type JobHandler, type TResponsePipelineJobData, UnrecoverableError } from "@formbricks/jobs";
+import {
+  type JobHandler,
+  type TResponsePipelineJobData,
+  UnrecoverableError,
+  enqueueResponseAnalysisJob,
+} from "@formbricks/jobs";
 import { logger } from "@formbricks/logger";
 import { DatabaseError } from "@formbricks/types/errors";
 import { type TUserLocale, ZUserLocale } from "@formbricks/types/user";
+import { isInstanceAIConfigured } from "@/lib/ai/service";
 import { DANGEROUSLY_ALLOW_WEBHOOK_INTERNAL_URLS, POSTHOG_KEY } from "@/lib/constants";
 import { generateStandardWebhookSignature } from "@/lib/crypto";
 import { handleFeedbackSourcePipeline } from "@/lib/feedback-source/pipeline-handler";
@@ -615,6 +621,41 @@ const handleSurveyAutoCompleteSafely = async ({
   }
 };
 
+const enqueueResponseAnalysisSafely = async ({
+  data,
+  logContext,
+  organizationId,
+  workspaceId,
+}: {
+  data: TResponsePipelineJobData;
+  logContext: ReturnType<typeof getPipelineLogContext>;
+  organizationId: string;
+  workspaceId: string;
+}): Promise<void> => {
+  // Gated only by instance-level AI configuration (no organization flag/entitlement): unattended
+  // response analysis is an instance/deployment decision, not a per-organization "Smart Tools" toggle.
+  if (!isInstanceAIConfigured()) {
+    return;
+  }
+
+  try {
+    await enqueueResponseAnalysisJob({
+      responseId: data.response.id,
+      surveyId: data.surveyId,
+      workspaceId,
+      organizationId,
+    });
+  } catch (error) {
+    logger.error(
+      {
+        ...logContext,
+        err: error,
+      },
+      "Response pipeline failed to enqueue response analysis job"
+    );
+  }
+};
+
 const runResponseFinishedSideEffects = async ({
   data,
   logContext,
@@ -687,6 +728,13 @@ const runResponseFinishedSideEffects = async ({
     organizationId,
     responseCount,
     survey,
+  });
+
+  await enqueueResponseAnalysisSafely({
+    data,
+    logContext,
+    organizationId,
+    workspaceId,
   });
 };
 

@@ -8,7 +8,7 @@ import { getTranslate } from "@/lingodotdev/server";
 import { GRACE_PERIOD_MS, getEnterpriseLicense } from "@/modules/ee/license-check/lib/license";
 import { getOrganizationAuth } from "@/modules/organization/lib/utils";
 import { getSettingsLayoutData } from "@/modules/settings/lib/navigation-data";
-import { getOrganizationBillingPath } from "@/modules/settings/lib/routes";
+import { getOrganizationAuditPath, getOrganizationBillingPath } from "@/modules/settings/lib/routes";
 import { Button } from "@/modules/ui/components/button";
 import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
 import { PageHeader } from "@/modules/ui/components/page-header";
@@ -16,7 +16,11 @@ import { PageHeader } from "@/modules/ui/components/page-header";
 const Page = async (props: Readonly<{ params: Promise<{ organizationId: string }> }>) => {
   const params = await props.params;
   const t = await getTranslate();
-  const { session, isBilling, isMember } = await getOrganizationAuth(params.organizationId);
+  const { session, isBilling, isMember, isAuditor } = await getOrganizationAuth(params.organizationId);
+
+  if (isAuditor) {
+    redirect(getOrganizationAuditPath(params.organizationId));
+  }
 
   if (isBilling && IS_FORMBRICKS_CLOUD) {
     redirect(getOrganizationBillingPath(params.organizationId, IS_FORMBRICKS_CLOUD));

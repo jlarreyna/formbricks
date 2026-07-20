@@ -108,8 +108,7 @@ test.describe("Survey Email Preview", () => {
     await expect(firstChoiceLink).toHaveAttribute("href", /skipPrefilled=true/);
     await expect(firstChoiceLink).toHaveAttribute("target", "_blank");
 
-    const poweredByLink = previewFrame.getByRole("link", { name: "Powered by Formbricks" });
-    await expect(poweredByLink).toHaveAttribute("href", "https://formbricks.com?utm_source=email_branding");
+    await expect(previewFrame.getByRole("link", { name: "Powered by Formbricks" })).toHaveCount(0);
   });
 
   test("keeps non-option email previews clickable in the summary modal", async ({ page, users }) => {

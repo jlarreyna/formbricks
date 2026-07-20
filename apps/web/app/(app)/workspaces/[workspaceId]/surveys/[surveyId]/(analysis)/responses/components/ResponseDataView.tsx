@@ -108,6 +108,8 @@ const mapResponsesToTableData = (
     contactAttributes: response.contactAttributes,
     meta: response.meta,
     quotas: response.quotas?.map((quota) => quota.name),
+    sentiment: response.analysis?.sentiment ?? null,
+    emotion: response.analysis?.emotion ?? null,
   }));
 };
 

@@ -14,7 +14,7 @@ import {
   getWorkspaceIdFromContactId,
 } from "@/lib/utils/helper";
 import { withAuditLogging } from "@/modules/ee/audit-logs/lib/handler";
-import { createContactsFromCSV, deleteContact, getContact, getContacts } from "./lib/contacts";
+import { createContact, createContactsFromCSV, deleteContact, getContact, getContacts } from "./lib/contacts";
 import { updateContactAttributes } from "./lib/update-contact-attributes";
 import {
   ZContactCSVAttributeMap,
@@ -149,6 +149,59 @@ export const createContactsFromCSVAction = authenticatedActionClient
       return result;
     })
   );
+
+const ZCreateContactAction = z.object({
+  workspaceId: ZId,
+  attributes: ZContactAttributesInput,
+});
+
+export const createContactAction = authenticatedActionClient.inputSchema(ZCreateContactAction).action(
+  withAuditLogging("created", "contact", async ({ ctx, parsedInput }) => {
+    const { workspaceId, attributes } = parsedInput;
+    const organizationId = await getOrganizationIdFromWorkspaceId(workspaceId);
+
+    await checkAuthorizationUpdated({
+      userId: ctx.user.id,
+      organizationId,
+      access: [
+        {
+          type: "organization",
+          roles: ["owner", "manager"],
+        },
+        {
+          type: "workspaceTeam",
+          workspaceId,
+          minPermission: "readWrite",
+        },
+      ],
+    });
+
+    ctx.auditLoggingCtx.organizationId = organizationId;
+    const existingContactCount = await prisma.contact.count({
+      where: { workspaceId },
+    });
+    const result = await createContact(workspaceId, attributes);
+
+    if ("contact" in result) {
+      ctx.auditLoggingCtx.contactId = result.contact.id;
+      ctx.auditLoggingCtx.newObject = result.contact;
+
+      capturePostHogEvent(
+        ctx.user.id,
+        "contact_created",
+        {
+          organization_id: organizationId,
+          workspace_id: workspaceId,
+          existing_contact_count: existingContactCount,
+          creation_method: "manual",
+        },
+        { organizationId, workspaceId }
+      );
+    }
+
+    return result;
+  })
+);
 
 const ZUpdateContactAttributesAction = z.object({
   contactId: ZId,

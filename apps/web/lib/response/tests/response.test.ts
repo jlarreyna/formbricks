@@ -41,6 +41,9 @@ const expectedResponseWithoutPerson: TResponse = {
   ...mockResponse,
   contact: null,
   tags: mockTags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+  // mockResponse.analysis is always null in these fixtures; the raw Prisma column type
+  // (string-typed enums) is never actually populated, so narrowing it here is safe.
+  analysis: mockResponse.analysis as TResponse["analysis"],
 };
 
 const mockOrganizationBillingRecord = {

@@ -10,6 +10,7 @@ import {
   type TOrganizationWhitelabel,
 } from "@formbricks/types/organizations";
 import type { TSurveyQuotaLogic } from "@formbricks/types/quota";
+import { type TResponseAnalysisPayload } from "@formbricks/types/response-analysis";
 import {
   type TResponseContactAttributes,
   type TResponseData,
@@ -78,5 +79,8 @@ declare global {
     export type ChartQuery = TChartQuery;
     export type ChartConfig = TChartConfig;
     export type WidgetLayout = TWidgetLayout;
+    export type EmailCampaignRecipientHiddenFields = Record<string, string>;
+    export type EmailCampaignRecipientVariables = Record<string, string>;
+    export type ResponseAnalysisData = TResponseAnalysisPayload;
   }
 }

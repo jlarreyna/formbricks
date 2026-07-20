@@ -11,6 +11,7 @@ describe("getAccessFlags", () => {
       isOwner: true,
       isBilling: false,
       isMember: false,
+      isAuditor: false,
     });
   });
 
@@ -22,6 +23,7 @@ describe("getAccessFlags", () => {
       isOwner: false,
       isBilling: false,
       isMember: false,
+      isAuditor: false,
     });
   });
 
@@ -33,6 +35,7 @@ describe("getAccessFlags", () => {
       isOwner: false,
       isBilling: true,
       isMember: false,
+      isAuditor: false,
     });
   });
 
@@ -44,6 +47,19 @@ describe("getAccessFlags", () => {
       isOwner: false,
       isBilling: false,
       isMember: true,
+      isAuditor: false,
+    });
+  });
+
+  test("should return correct flags for auditor role", () => {
+    const role: TOrganizationRole = "auditor";
+    const flags = getAccessFlags(role);
+    expect(flags).toEqual({
+      isManager: false,
+      isOwner: false,
+      isBilling: false,
+      isMember: false,
+      isAuditor: true,
     });
   });
 
@@ -54,6 +70,7 @@ describe("getAccessFlags", () => {
       isOwner: false,
       isBilling: false,
       isMember: false,
+      isAuditor: false,
     });
   });
 });

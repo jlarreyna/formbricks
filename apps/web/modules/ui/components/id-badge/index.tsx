@@ -4,6 +4,7 @@ import React, { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { logger } from "@formbricks/logger";
+import { copyTextToClipboard } from "@/lib/utils/clipboard";
 import { BadgeContent } from "./components/badge-content";
 
 interface IdBadgeProps {
@@ -32,12 +33,7 @@ export const IdBadge: React.FC<IdBadgeProps> = ({
     e.stopPropagation();
 
     try {
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(String(id));
-      } else {
-        logger.error("Clipboard API not supported");
-        throw new Error("Clipboard API not supported");
-      }
+      await copyTextToClipboard(String(id));
       toast.success(t("common.copied_to_clipboard"));
       setIsCopied(true);
     } catch (error) {

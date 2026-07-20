@@ -13,6 +13,7 @@ import {
   LanguagesIcon,
   ListChecksIcon,
   Loader2,
+  ScrollTextIcon,
   ShieldIcon,
   TagIcon,
   UnplugIcon,
@@ -282,8 +283,9 @@ export const SettingsSidebarContent = ({
 }: SettingsSidebarContentProps) => {
   const pathname = usePathname();
   const { t } = useTranslation();
-  const { isMember, isBilling, isOwner, isManager } = getAccessFlags(membershipRole);
+  const { isMember, isBilling, isOwner, isManager, isAuditor } = getAccessFlags(membershipRole);
   const isOwnerOrManager = isOwner || isManager;
+  const canViewAudit = isOwnerOrManager || isAuditor;
   const iconClassName = "h-4 w-4 shrink-0";
 
   // Workspace items stay nested under the workspace; organization and account settings are now
@@ -296,6 +298,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "general"),
       icon: <FoldersIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "teams",
@@ -303,6 +306,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "teams"),
       icon: <UsersIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "languages",
@@ -310,6 +314,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "languages"),
       icon: <LanguagesIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "app-connection",
@@ -317,6 +322,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "app-connection"),
       icon: <UnplugIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "integrations",
@@ -324,6 +330,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "integrations"),
       icon: <BlocksIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "look",
@@ -331,6 +338,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "look"),
       icon: <BrushIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "user-actions",
@@ -338,6 +346,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "user-actions"),
       icon: <ListChecksIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "tags",
@@ -345,6 +354,7 @@ export const SettingsSidebarContent = ({
       href: workspaceSettingsPath(workspaceId, "tags"),
       icon: <TagIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
   ];
 
@@ -355,6 +365,7 @@ export const SettingsSidebarContent = ({
       href: organizationSettingsPath(organizationId, "general"),
       icon: <Building2Icon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "org-teams",
@@ -362,42 +373,50 @@ export const SettingsSidebarContent = ({
       href: organizationSettingsPath(organizationId, "teams"),
       icon: <UsersIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "org-api-keys",
       label: t("common.api_keys"),
       href: organizationSettingsPath(organizationId, "api-keys"),
       icon: <KeyIcon className={iconClassName} />,
-      hidden: !isOwnerOrManager,
+      hidden: !isOwnerOrManager || isAuditor,
     },
     {
       id: "org-feedback-directories",
       label: t("workspace.settings.feedback_directories.nav_label"),
       href: organizationSettingsPath(organizationId, "feedback-directories"),
       icon: <FoldersIcon className={iconClassName} />,
-      hidden: isMember,
+      hidden: isMember || isAuditor,
       disabled: !isOwnerOrManager,
+    },
+    {
+      id: "org-audit",
+      label: t("workspace.settings.audit.nav_label"),
+      href: organizationSettingsPath(organizationId, "audit"),
+      icon: <ScrollTextIcon className={iconClassName} />,
+      hidden: !canViewAudit,
     },
     {
       id: "org-domain",
       label: t("common.domain"),
       href: organizationSettingsPath(organizationId, "domain"),
       icon: <GlobeIcon className={iconClassName} />,
-      hidden: isFormbricksCloud,
+      hidden: isFormbricksCloud || isAuditor,
     },
     {
       id: "org-billing",
       label: t("common.billing"),
       href: organizationSettingsPath(organizationId, "billing"),
       icon: <CreditCardIcon className={iconClassName} />,
-      hidden: !isFormbricksCloud,
+      hidden: !isFormbricksCloud || isAuditor,
     },
     {
       id: "org-enterprise",
       label: t("common.enterprise_license"),
       href: organizationSettingsPath(organizationId, "enterprise"),
       icon: <ShieldIcon className={iconClassName} />,
-      hidden: isFormbricksCloud,
+      hidden: isFormbricksCloud || isAuditor,
       disabled: isMember || isBilling,
     },
   ];
@@ -408,6 +427,7 @@ export const SettingsSidebarContent = ({
       label: t("common.your_profile"),
       href: accountSettingsPath("profile"),
       icon: <UserCircleIcon className={iconClassName} />,
+      hidden: isAuditor,
     },
     {
       id: "notifications",
@@ -415,6 +435,7 @@ export const SettingsSidebarContent = ({
       href: accountSettingsPath("notifications"),
       icon: <BellIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
     {
       id: "authorized-apps",
@@ -422,6 +443,7 @@ export const SettingsSidebarContent = ({
       href: accountSettingsPath("authorized-apps"),
       icon: <UnplugIcon className={iconClassName} />,
       disabled: isBilling,
+      hidden: isAuditor,
     },
   ];
 
@@ -445,9 +467,12 @@ export const SettingsSidebarContent = ({
     );
   };
 
+  const showWorkspaceSection = !hideWorkspaceSection && !isAuditor;
+  const showAccountSection = !isAuditor;
+
   return (
     <div className="flex flex-col overflow-y-auto">
-      {!hideWorkspaceSection && (
+      {showWorkspaceSection && (
         <div>
           <SectionHeader
             label={t("common.workspace")}
@@ -483,10 +508,16 @@ export const SettingsSidebarContent = ({
         {renderSection(organizationItems)}
       </div>
 
-      <div>
-        <SectionHeader label={t("common.account")} isCollapsed={isCollapsed} isTextVisible={isTextVisible} />
-        {renderSection(accountItems)}
-      </div>
+      {showAccountSection && (
+        <div>
+          <SectionHeader
+            label={t("common.account")}
+            isCollapsed={isCollapsed}
+            isTextVisible={isTextVisible}
+          />
+          {renderSection(accountItems)}
+        </div>
+      )}
     </div>
   );
 };

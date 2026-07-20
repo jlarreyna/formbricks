@@ -741,18 +741,12 @@ function PreviewQuestionCard({
 function PreviewEmailCard({
   children,
   styleTokens,
-  t,
 }: Readonly<{
   children: React.ReactNode;
   styleTokens: PreviewEmailStyleTokens;
   t: TFunction;
 }>): React.JSX.Element {
-  return (
-    <EmailTemplateWrapper styleTokens={styleTokens}>
-      {children}
-      <EmailFooter fontFamily={styleTokens.fontFamily} signatureColor={styleTokens.signatureColor} t={t} />
-    </EmailTemplateWrapper>
-  );
+  return <EmailTemplateWrapper styleTokens={styleTokens}>{children}</EmailTemplateWrapper>;
 }
 
 function PreviewChoiceList({
@@ -1029,23 +1023,5 @@ function EmailTemplateWrapper({
         {children}
       </Section>
     </Tailwind>
-  );
-}
-
-function EmailFooter({
-  fontFamily,
-  signatureColor,
-  t,
-}: Readonly<{ fontFamily: string; signatureColor: string; t: TFunction }>): React.JSX.Element {
-  return (
-    <Container className="mx-auto mt-8 text-center">
-      <Link
-        className="text-signature-color text-xs"
-        href="https://formbricks.com?utm_source=email_branding"
-        style={{ ...getForcedColorStyle(signatureColor), fontFamily }}
-        target={PREVIEW_LINK_TARGET}>
-        {t("common.powered_by_formbricks")}
-      </Link>
-    </Container>
   );
 }

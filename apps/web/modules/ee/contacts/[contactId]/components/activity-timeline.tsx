@@ -110,17 +110,22 @@ export const ActivityTimeline = ({
   };
 
   return (
-    <div className="col-span-3">
+    <div className="lg:col-span-3">
       <div className="flex items-center justify-between pb-6">
-        <h2 className="text-lg font-bold text-slate-700">{t("common.activity")}</h2>
-        <div className="text-right">
-          <button
-            type="button"
-            onClick={toggleSort}
-            className="flex items-center px-1 text-slate-800 hover:text-brand-dark">
-            <ArrowDownUpIcon className="inline size-4" />
-          </button>
-        </div>
+        <h2 className="text-lg font-bold text-slate-700">
+          {t("common.activity")}
+          {timelineItems.length > 0 && (
+            <span className="ml-2 text-sm font-normal text-slate-400">({timelineItems.length})</span>
+          )}
+        </h2>
+        <button
+          type="button"
+          onClick={toggleSort}
+          title={t("common.sort_by")}
+          className="flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 shadow-xs hover:bg-slate-50 hover:text-slate-800">
+          <ArrowDownUpIcon className="size-3.5" />
+          {isReversed ? t("common.oldest_first") : t("common.newest_first")}
+        </button>
       </div>
       {timelineItems.length === 0 ? (
         <EmptyState text={t("workspace.contacts.no_activity_yet")} />

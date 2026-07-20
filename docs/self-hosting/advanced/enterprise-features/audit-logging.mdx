@@ -25,13 +25,15 @@ Audit logs record **who** did **what**, **when**, **from where**, and **with wha
 ```bash title=".env"
 # --- Audit logging ---
 AUDIT_LOG_ENABLED=1
+AUDIT_LOG_DB_ENABLED=1                         # set to 1 to persist audit events in Postgres for the in-app Audit UI
 AUDIT_LOG_GET_USER_IP=1                        # set to 1 to include user IP address in audit logs, 0 to omit (default: 0)
 ```
 
 2. Redeploy your containers.
 3. Confirm you can see audit logs in the output of your containers.
+4. Optionally open **Organization settings → Audit** to browse and export persisted events when `AUDIT_LOG_DB_ENABLED=1`.
 
-Audit logs are printed to **stdout** as JSON Lines format, making them easily accessible through your container logs or log aggregation systems.
+Audit logs are printed to **stdout** as JSON Lines format, making them easily accessible through your container logs or log aggregation systems. With `AUDIT_LOG_DB_ENABLED=1`, the same events are also stored in the database for the in-app Audit page.
 
 ---
 

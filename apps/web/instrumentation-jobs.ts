@@ -1,6 +1,8 @@
 import {
   type JobHandlerOverrides,
   type JobsRuntimeHandle,
+  type TEmailCampaignRecipientJobData,
+  type TResponseAnalysisJobData,
   type TResponsePipelineJobData,
   type TSurveySchedulingJobData,
   removeRecurringSurveySchedulingJobSchedule,
@@ -9,6 +11,8 @@ import {
 } from "@formbricks/jobs";
 import { logger } from "@formbricks/logger";
 import { getJobsQueueingConfig, getJobsWorkerBootstrapConfig } from "@/lib/jobs/config";
+import { processEmailCampaignRecipientJob } from "@/modules/ee/email-campaigns/lib/process-email-campaign-recipient-job";
+import { processResponseAnalysisJob } from "@/modules/ee/response-analysis/lib/process-response-analysis-job";
 import { processResponsePipelineJob } from "@/modules/response-pipeline/lib/process-response-pipeline-job";
 import {
   SURVEY_SCHEDULING_DAILY_CRON_PATTERN,
@@ -32,12 +36,20 @@ type TJobsRuntimeGlobal = typeof globalThis & {
 const globalForJobsRuntime = globalThis as TJobsRuntimeGlobal;
 const RESPONSE_PIPELINE_JOB_NAME = "response-pipeline.process";
 const SURVEY_SCHEDULING_JOB_NAME = "survey-scheduling.reconcile";
+const EMAIL_CAMPAIGN_RECIPIENT_JOB_NAME = "email-campaign-recipient.process";
+const RESPONSE_ANALYSIS_JOB_NAME = "response-analysis.process";
 
 const responsePipelineJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
   await processResponsePipelineJob(data as TResponsePipelineJobData, context);
 };
 const surveySchedulingJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
   await processSurveySchedulingJob(data as TSurveySchedulingJobData, context);
+};
+const emailCampaignRecipientJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
+  await processEmailCampaignRecipientJob(data as TEmailCampaignRecipientJobData, context);
+};
+const responseAnalysisJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
+  await processResponseAnalysisJob(data as TResponseAnalysisJobData, context);
 };
 
 const registerSurveySchedulingSchedule = async (): Promise<void> => {
@@ -170,10 +182,14 @@ export const registerJobsWorker = async (): Promise<JobsRuntimeHandle | null> =>
         ...runtimeOptions.jobHandlerOverrides,
         [RESPONSE_PIPELINE_JOB_NAME]: responsePipelineJobHandler,
         [SURVEY_SCHEDULING_JOB_NAME]: surveySchedulingJobHandler,
+        [EMAIL_CAMPAIGN_RECIPIENT_JOB_NAME]: emailCampaignRecipientJobHandler,
+        [RESPONSE_ANALYSIS_JOB_NAME]: responseAnalysisJobHandler,
       }
     : {
         [RESPONSE_PIPELINE_JOB_NAME]: responsePipelineJobHandler,
         [SURVEY_SCHEDULING_JOB_NAME]: surveySchedulingJobHandler,
+        [EMAIL_CAMPAIGN_RECIPIENT_JOB_NAME]: emailCampaignRecipientJobHandler,
+        [RESPONSE_ANALYSIS_JOB_NAME]: responseAnalysisJobHandler,
       };
 
   globalForJobsRuntime.formbricksJobsRuntimeInitializing = (async () => {

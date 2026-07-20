@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { TContactAttributeDataType, TContactAttributeKey } from "@formbricks/types/contact-attribute-key";
 import { getFormattedErrorMessage } from "@/lib/utils/helper";
+import { translateAttributeMessage } from "@/modules/ee/contacts/lib/attribute-messages";
 import { Button } from "@/modules/ui/components/button";
 import {
   Dialog,
@@ -178,28 +179,8 @@ export const EditContactAttributesModal = ({
         toast.success(t("workspace.contacts.edit_attributes_success"));
 
         if (result.data.messages && result.data.messages.length > 0) {
-          const translateMessage = (code: string, params: Record<string, string>): string => {
-            switch (code) {
-              case "email_or_userid_required":
-                return t("workspace.contacts.attributes_msg_email_or_userid_required");
-              case "attribute_type_validation_error":
-                return t("workspace.contacts.attributes_msg_attribute_type_validation_error", params);
-              case "email_already_exists":
-                return t("workspace.contacts.attributes_msg_email_already_exists");
-              case "userid_already_exists":
-                return t("workspace.contacts.attributes_msg_userid_already_exists");
-              case "attribute_limit_exceeded":
-                return t("workspace.contacts.attributes_msg_attribute_limit_exceeded", params);
-              case "new_attribute_created":
-                return t("workspace.contacts.attributes_msg_new_attribute_created", params);
-              default:
-                return code;
-            }
-          };
-
           result.data.messages.forEach((msg) => {
-            const errorMessage = translateMessage(msg.code, msg.params);
-            toast.error(errorMessage);
+            toast.error(translateAttributeMessage(msg, t));
           });
         }
 

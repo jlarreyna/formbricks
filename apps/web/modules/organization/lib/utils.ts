@@ -32,7 +32,7 @@ export const getOrganizationAuth = reactCache(async (organizationId: string): Pr
     throw new ResourceNotFoundError(t("common.membership"), null);
   }
 
-  const { isMember, isOwner, isManager, isBilling } = getAccessFlags(currentUserMembership?.role);
+  const { isMember, isOwner, isManager, isBilling, isAuditor } = getAccessFlags(currentUserMembership?.role);
 
   return {
     organization,
@@ -42,5 +42,6 @@ export const getOrganizationAuth = reactCache(async (organizationId: string): Pr
     isOwner,
     isManager,
     isBilling,
+    isAuditor,
   };
 });

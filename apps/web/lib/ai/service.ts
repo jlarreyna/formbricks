@@ -149,3 +149,38 @@ export const generateOrganizationAIObject = async <T = unknown>({
     throw error;
   }
 };
+
+/**
+ * Generates structured AI output gated only by instance-level configuration (AI_PROVIDER /
+ * AI_MODEL), bypassing the organization "Smart Tools" flag/entitlement. Intended for backend
+ * features that process collected response data on the organization's behalf (e.g. unattended
+ * response analysis), where enablement is an instance/deployment decision rather than a
+ * per-organization "Smart Tools" toggle.
+ */
+export const generateInstanceAIObject = async <T = unknown>(
+  options: TGenerateObjectOptions<T>
+): Promise<TGenerateObjectResult<T>> => {
+  if (!isInstanceAIConfigured()) {
+    throw new OperationNotAllowedError(AI_ERROR_CODES.INSTANCE_NOT_CONFIGURED);
+  }
+
+  try {
+    return await generateObject<T>(options, env);
+  } catch (error) {
+    const providerError = classifyAIProviderError(error);
+    logger.error(
+      {
+        errorCode: error instanceof AIConfigurationError ? error.code : undefined,
+        statusCode: providerError?.statusCode,
+        isQuotaExhausted: providerError?.isQuotaExhausted,
+        isRetryable: providerError?.isRetryable,
+        err: error,
+      },
+      "Failed to generate instance AI object"
+    );
+    if (providerError?.isQuotaExhausted) {
+      throw new TooManyRequestsError(AI_ERROR_CODES.QUOTA_EXCEEDED, providerError.retryAfterSeconds);
+    }
+    throw error;
+  }
+};

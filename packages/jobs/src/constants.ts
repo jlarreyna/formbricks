@@ -7,6 +7,8 @@ export const JOB_NAMES = {
   testLog: "system.test-log",
   responsePipeline: "response-pipeline.process",
   surveyScheduling: "survey-scheduling.reconcile",
+  emailCampaignRecipient: "email-campaign-recipient.process",
+  responseAnalysis: "response-analysis.process",
 } as const;
 
 const JOBS_DEFAULT_BACKOFF = Object.freeze({

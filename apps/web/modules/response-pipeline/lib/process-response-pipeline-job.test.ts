@@ -8,9 +8,11 @@ const {
   mockCaptureSurveyResponsePostHogEvent,
   mockCreatePinnedDispatcher,
   mockDispatcherDestroy,
+  mockEnqueueResponseAnalysisJob,
   mockGetIntegrations,
   mockGetResponseCountBySurveyId,
   mockHandleIntegrations,
+  mockIsInstanceAIConfigured,
   mockLoggerError,
   mockLoggerWarn,
   mockPrismaOrganizationFindFirst,
@@ -33,9 +35,11 @@ const {
     mockCaptureSurveyResponsePostHogEvent: vi.fn(),
     mockCreatePinnedDispatcher: vi.fn(() => ({ destroy: dispatcherDestroy })),
     mockDispatcherDestroy: dispatcherDestroy,
+    mockEnqueueResponseAnalysisJob: vi.fn(),
     mockGetIntegrations: vi.fn(),
     mockGetResponseCountBySurveyId: vi.fn(),
     mockHandleIntegrations: vi.fn(),
+    mockIsInstanceAIConfigured: vi.fn(),
     mockLoggerError: vi.fn(),
     mockLoggerWarn: vi.fn(),
     mockPrismaOrganizationFindFirst: vi.fn(),
@@ -77,6 +81,11 @@ vi.mock("@formbricks/jobs", () => ({
       this.name = "UnrecoverableError";
     }
   },
+  enqueueResponseAnalysisJob: mockEnqueueResponseAnalysisJob,
+}));
+
+vi.mock("@/lib/ai/service", () => ({
+  isInstanceAIConfigured: mockIsInstanceAIConfigured,
 }));
 
 vi.mock(import("@/lib/constants"), async (importOriginal) => {
@@ -221,6 +230,8 @@ describe("processResponsePipelineJob", () => {
     mockSendFollowUpsForResponse.mockResolvedValue({ ok: true, data: [] });
     mockSendTelemetryEvents.mockResolvedValue(undefined);
     mockPrismaSurveyUpdate.mockResolvedValue(undefined);
+    mockIsInstanceAIConfigured.mockReturnValue(false);
+    mockEnqueueResponseAnalysisJob.mockResolvedValue(undefined);
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -938,6 +949,76 @@ describe("processResponsePipelineJob", () => {
         err: poolExhaustionError,
       }),
       "Response pipeline job failed"
+    );
+  });
+
+  test("enqueues response analysis for responseFinished jobs when AI is configured at the instance level", async () => {
+    mockIsInstanceAIConfigured.mockReturnValue(true);
+
+    await expect(
+      processResponsePipelineJob(
+        {
+          ...baseData,
+          event: "responseFinished",
+        },
+        baseContext
+      )
+    ).resolves.toBeUndefined();
+
+    expect(mockEnqueueResponseAnalysisJob).toHaveBeenCalledWith({
+      responseId: "response_123",
+      surveyId: "survey_123",
+      workspaceId: "workspace_123",
+      organizationId: "org_123",
+    });
+  });
+
+  test("does not enqueue response analysis when AI is not configured at the instance level", async () => {
+    mockIsInstanceAIConfigured.mockReturnValue(false);
+
+    await expect(
+      processResponsePipelineJob(
+        {
+          ...baseData,
+          event: "responseFinished",
+        },
+        baseContext
+      )
+    ).resolves.toBeUndefined();
+
+    expect(mockEnqueueResponseAnalysisJob).not.toHaveBeenCalled();
+  });
+
+  test("does not enqueue response analysis for responseCreated jobs", async () => {
+    mockIsInstanceAIConfigured.mockReturnValue(true);
+
+    await expect(processResponsePipelineJob(baseData, baseContext)).resolves.toBeUndefined();
+
+    expect(mockEnqueueResponseAnalysisJob).not.toHaveBeenCalled();
+  });
+
+  test("logs response analysis enqueue failures without failing the responseFinished job", async () => {
+    mockIsInstanceAIConfigured.mockReturnValue(true);
+    const enqueueError = new Error("queue offline");
+    mockEnqueueResponseAnalysisJob.mockRejectedValue(enqueueError);
+
+    await expect(
+      processResponsePipelineJob(
+        {
+          ...baseData,
+          event: "responseFinished",
+        },
+        baseContext
+      )
+    ).resolves.toBeUndefined();
+
+    expect(mockLoggerError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        err: enqueueError,
+        event: "responseFinished",
+        jobId: "job_123",
+      }),
+      "Response pipeline failed to enqueue response analysis job"
     );
   });
 });

@@ -111,6 +111,8 @@ export const canAssignOrganizationRole = (
 ): boolean => {
   if (assignerRole === OrganizationRole.owner) return true;
   if (targetCurrentRole === OrganizationRole.owner) return false;
+  // Auditor role may only be assigned by owners.
+  if (targetRole === "auditor") return false;
   if (assignerRole === OrganizationRole.manager) return targetRole === OrganizationRole.member;
   return false;
 };

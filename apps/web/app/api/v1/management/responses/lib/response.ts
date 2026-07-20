@@ -10,7 +10,7 @@ import { TResponse, TResponseInput, ZResponseInput } from "@formbricks/types/res
 import { TTag } from "@formbricks/types/tags";
 import { buildPrismaResponseData } from "@/app/api/v1/lib/utils";
 import { RESPONSES_PER_PAGE } from "@/lib/constants";
-import { getResponseContact } from "@/lib/response/service";
+import { getResponseContact, mapResponseAnalysis } from "@/lib/response/service";
 import { calculateTtcTotal } from "@/lib/response/utils";
 import { getSurvey } from "@/lib/survey/service";
 import { getOrganizationIdFromWorkspaceId } from "@/lib/utils/helper";
@@ -52,6 +52,23 @@ export const responseSelection = {
           workspaceId: true,
         },
       },
+    },
+  },
+  analysis: {
+    select: {
+      sentiment: true,
+      sentimentScore: true,
+      severity: true,
+      confidence: true,
+      categories: true,
+      topics: true,
+      keywords: true,
+      emotion: true,
+      customerEffort: true,
+      requiresFollowup: true,
+      recommendedDepartment: true,
+      recommendedPriority: true,
+      summary: true,
     },
   },
 } satisfies Prisma.ResponseSelect;
@@ -129,6 +146,7 @@ export const createResponse = async (
           }
         : null,
       tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+      analysis: mapResponseAnalysis(responsePrisma.analysis),
     };
 
     return response;
@@ -168,6 +186,7 @@ export const getResponsesByWorkspaceIds = reactCache(
         ...responsePrisma,
         contact: getResponseContact(responsePrisma),
         tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+        analysis: mapResponseAnalysis(responsePrisma.analysis),
       }));
 
       return transformedResponses;
@@ -208,6 +227,7 @@ export const getResponses = reactCache(
         ...responsePrisma,
         contact: getResponseContact(responsePrisma),
         tags: responsePrisma.tags.map((tagPrisma: { tag: TTag }) => tagPrisma.tag),
+        analysis: mapResponseAnalysis(responsePrisma.analysis),
       }));
 
       return transformedResponses;

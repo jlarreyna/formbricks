@@ -15,6 +15,7 @@ import { getContactIdentifier } from "@/lib/utils/contact";
 import { formatDateTimeForDisplay } from "@/lib/utils/datetime";
 import { recallToHeadline } from "@/lib/utils/recall";
 import { RenderResponse } from "@/modules/analysis/components/SingleResponseCard/components/RenderResponse";
+import { CHART_SENTIMENT_COLORS } from "@/modules/ee/analysis/charts/lib/chart-utils";
 import { getElementsFromBlocks } from "@/modules/survey/lib/client-utils";
 import { VARIABLES_ICON_MAP, getElementIconMap } from "@/modules/survey/lib/elements";
 import { getSelectionColumn } from "@/modules/ui/components/data-table";
@@ -352,6 +353,32 @@ export const generateResponseTableColumns = (
     },
   };
 
+  const sentimentColumn: ColumnDef<TResponseTableData> = {
+    accessorKey: "sentiment",
+    header: () => <div className="gap-x-1.5">{t("workspace.surveys.responses.sentiment")}</div>,
+    cell: ({ row }) => {
+      const { sentiment } = row.original;
+      if (!sentiment) return null;
+      return (
+        <span
+          className="inline-flex items-center rounded-md px-2 py-1 font-medium text-white"
+          style={{ backgroundColor: CHART_SENTIMENT_COLORS[sentiment] }}>
+          {t(`workspace.analysis.charts.sentiment_value_${sentiment}`)}
+        </span>
+      );
+    },
+  };
+
+  const emotionColumn: ColumnDef<TResponseTableData> = {
+    accessorKey: "emotion",
+    header: () => <div className="gap-x-1.5">{t("workspace.surveys.responses.emotion")}</div>,
+    cell: ({ row }) => {
+      const { emotion } = row.original;
+      if (!emotion) return null;
+      return <ResponseBadges items={[{ value: emotion }]} showId={false} />;
+    },
+  };
+
   const tagsColumn: ColumnDef<TResponseTableData> = {
     accessorKey: "tags",
     header: () => <div className="gap-x-1.5">{t("common.tags")}</div>,
@@ -433,6 +460,8 @@ export const generateResponseTableColumns = (
     dateColumn,
     ...(showQuotasColumn ? [quotasColumn] : []),
     statusColumn,
+    sentimentColumn,
+    emotionColumn,
     ...(survey.isVerifyEmailEnabled ? [verifiedEmailColumn] : []),
     ...elementColumns,
     ...variableColumns,

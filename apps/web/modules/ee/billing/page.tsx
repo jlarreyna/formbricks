@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { IS_FORMBRICKS_CLOUD } from "@/lib/constants";
 import { env } from "@/lib/env";
 import { getMonthlyOrganizationResponseCount } from "@/lib/organization/service";
@@ -8,6 +8,7 @@ import { getTranslate } from "@/lingodotdev/server";
 import { getCloudBillingDisplayContext } from "@/modules/ee/billing/lib/cloud-billing-display";
 import { getStripeBillingCatalogDisplay } from "@/modules/ee/billing/lib/stripe-billing-catalog";
 import { getOrganizationAuth } from "@/modules/organization/lib/utils";
+import { getOrganizationAuditPath } from "@/modules/settings/lib/routes";
 import { PageContentWrapper } from "@/modules/ui/components/page-content-wrapper";
 import { PageHeader } from "@/modules/ui/components/page-header";
 import { PricingTable } from "./components/pricing-table";
@@ -16,7 +17,11 @@ export const PricingPage = async (props: { params: Promise<{ organizationId: str
   const params = await props.params;
   const t = await getTranslate();
 
-  const { organization, isMember, session } = await getOrganizationAuth(params.organizationId);
+  const { organization, isMember, isAuditor, session } = await getOrganizationAuth(params.organizationId);
+
+  if (isAuditor) {
+    redirect(getOrganizationAuditPath(params.organizationId));
+  }
 
   if (!IS_FORMBRICKS_CLOUD) {
     notFound();

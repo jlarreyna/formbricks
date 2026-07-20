@@ -155,6 +155,12 @@ describe("canAssignOrganizationRole", () => {
     expect(canAssignOrganizationRole("owner", "owner")).toBe(true);
     expect(canAssignOrganizationRole("owner", "manager")).toBe(true);
     expect(canAssignOrganizationRole("owner", "member")).toBe(true);
+    expect(canAssignOrganizationRole("owner", "auditor")).toBe(true);
+  });
+
+  test("manager cannot assign the auditor role", () => {
+    expect(canAssignOrganizationRole("manager", "auditor")).toBe(false);
+    expect(canAssignOrganizationRole("manager", "auditor", "member")).toBe(false);
   });
 
   test("owner can change the role of an existing owner", () => {

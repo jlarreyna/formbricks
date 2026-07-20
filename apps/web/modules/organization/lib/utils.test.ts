@@ -16,6 +16,7 @@ vi.mock("@/lib/membership/utils", () => ({
     isOwner: false,
     isManager: false,
     isBilling: false,
+    isAuditor: false,
   })),
 }));
 vi.mock("@/lib/organization/service", () => ({

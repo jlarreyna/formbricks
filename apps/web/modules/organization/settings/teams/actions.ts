@@ -268,6 +268,10 @@ export const inviteUserAction = authenticatedActionClient.inputSchema(ZInviteUse
       throw new AuthenticationError("User not a member of this organization");
     }
 
+    if (parsedInput.role === "auditor" && currentUserMembership.role !== "owner") {
+      throw new OperationNotAllowedError("Only owners can assign the auditor role");
+    }
+
     const isOrgOwnerOrManager =
       currentUserMembership.role === "owner" || currentUserMembership.role === "manager";
 
@@ -404,6 +408,10 @@ export const bulkInviteUsersAction = authenticatedActionClient.inputSchema(ZBulk
     // Validate roles for the whole batch up front.
     if (!IS_FORMBRICKS_CLOUD && invitees.some((invitee) => invitee.role === OrganizationRole.billing)) {
       throw new ValidationError("Billing role is not allowed");
+    }
+
+    if (invitees.some((invitee) => invitee.role === "auditor") && currentUserMembership.role !== "owner") {
+      throw new OperationNotAllowedError("Only owners can assign the auditor role");
     }
 
     if (currentUserMembership.role === "manager" && invitees.some((invitee) => invitee.role !== "member")) {

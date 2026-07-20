@@ -6,29 +6,37 @@ import * as OriginalHandler from "./handler";
 
 // Use 'var' for all mock handles used in vi.mock factories to avoid hoisting/TDZ issues
 var serviceLogAuditEventMockHandle: ReturnType<typeof vi.fn>; // NOSONAR / test code
+var persistAuditLogEventMockHandle: ReturnType<typeof vi.fn>; // NOSONAR / test code
 var loggerErrorMockHandle: ReturnType<typeof vi.fn>; // NOSONAR / test code
 
 // Use 'var' for mutableConstants due to hoisting issues with vi.mock factories
-var mutableConstants: { AUDIT_LOG_ENABLED: boolean }; // NOSONAR / test code
+var mutableConstants: { AUDIT_LOG_ENABLED: boolean; AUDIT_LOG_DB_ENABLED: boolean }; // NOSONAR / test code
 // Initialize mutableConstants here, after its declaration, but before vi.mock calls if possible,
 // or ensure factories handle potential undefined state if initialization is further down.
 // For safety with hoisted mocks, initialize immediately.
-mutableConstants = { AUDIT_LOG_ENABLED: true };
+mutableConstants = { AUDIT_LOG_ENABLED: true, AUDIT_LOG_DB_ENABLED: false };
 
-vi.mock("@/lib/constants", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/constants")>();
-  return {
-    ...actual,
-    // AUDIT_LOG_ENABLED will be controlled by mutableConstants
-    get AUDIT_LOG_ENABLED() {
-      // Guard against mutableConstants being undefined during early hoisting phases if not initialized above
-      return mutableConstants ? mutableConstants.AUDIT_LOG_ENABLED : true; // Default to true if somehow undefined
-    },
-    AUDIT_LOG_GET_USER_IP: true,
-  };
-});
+vi.mock("@/lib/constants", () => ({
+  // AUDIT_LOG_ENABLED will be controlled by mutableConstants
+  get AUDIT_LOG_ENABLED() {
+    // Guard against mutableConstants being undefined during early hoisting phases if not initialized above
+    return mutableConstants ? mutableConstants.AUDIT_LOG_ENABLED : true; // Default to true if somehow undefined
+  },
+  get AUDIT_LOG_DB_ENABLED() {
+    return mutableConstants ? mutableConstants.AUDIT_LOG_DB_ENABLED : false;
+  },
+  AUDIT_LOG_GET_USER_IP: true,
+}));
 vi.mock("@/lib/utils/client-ip", () => ({
   getClientIpFromHeaders: vi.fn().mockResolvedValue("127.0.0.1"),
+}));
+
+vi.mock("@/lib/utils/helper", () => ({
+  getOrganizationIdFromWorkspaceId: vi.fn().mockResolvedValue("org1"),
+}));
+
+vi.mock("@formbricks/database", () => ({
+  prisma: {},
 }));
 
 vi.mock("@/modules/ee/audit-logs/lib/service", () => {
@@ -36,6 +44,16 @@ vi.mock("@/modules/ee/audit-logs/lib/service", () => {
   serviceLogAuditEventMockHandle = mock;
   return { logAuditEvent: mock };
 });
+
+vi.mock("@/modules/ee/audit-logs/lib/persist", () => {
+  const mock = vi.fn();
+  persistAuditLogEventMockHandle = mock;
+  return { persistAuditLogEvent: mock };
+});
+
+vi.mock("@/modules/ee/license-check/lib/utils", () => ({
+  getIsAuditLogsEnabled: vi.fn().mockResolvedValue(false),
+}));
 
 vi.mock("./utils", async () => {
   const actualUtils = await vi.importActual("./utils");
@@ -131,11 +149,13 @@ const mockCtxBase = {
 // Helper to clear all mock handles
 function clearAllMockHandles() {
   if (serviceLogAuditEventMockHandle) serviceLogAuditEventMockHandle.mockClear().mockResolvedValue(undefined);
+  if (persistAuditLogEventMockHandle) persistAuditLogEventMockHandle.mockClear().mockResolvedValue(undefined);
   if (loggerErrorMockHandle) loggerErrorMockHandle.mockClear();
   vi.mocked(getClientIpFromHeaders).mockClear();
   if (mutableConstants) {
     // Check because it's a var and could be re-assigned (though not in this code)
     mutableConstants.AUDIT_LOG_ENABLED = true;
+    mutableConstants.AUDIT_LOG_DB_ENABLED = false;
   }
 }
 
@@ -247,16 +267,41 @@ describe("withAuditLogging", () => {
     expect(callArgs.target.id).toBe("t1");
   });
 
-  test("does not log if AUDIT_LOG_ENABLED is false", async () => {
-    if (mutableConstants) mutableConstants.AUDIT_LOG_ENABLED = false;
+  test("does not log if AUDIT_LOG_ENABLED and AUDIT_LOG_DB_ENABLED are false", async () => {
+    if (mutableConstants) {
+      mutableConstants.AUDIT_LOG_ENABLED = false;
+      mutableConstants.AUDIT_LOG_DB_ENABLED = false;
+    }
     const handlerImpl = vi.fn().mockResolvedValue("ok");
     const wrapped = OriginalHandler.withAuditLogging("created", "survey", handlerImpl);
     await wrapped({ ctx: mockCtxBase as any, parsedInput: mockParsedInput });
     await new Promise(setImmediate);
     expect(handlerImpl).toHaveBeenCalled();
     expect(serviceLogAuditEventMockHandle).not.toHaveBeenCalled();
+    expect(persistAuditLogEventMockHandle).not.toHaveBeenCalled();
     // Reset for other tests; clearAllMockHandles will also do this in the next beforeEach
-    if (mutableConstants) mutableConstants.AUDIT_LOG_ENABLED = true;
+    if (mutableConstants) {
+      mutableConstants.AUDIT_LOG_ENABLED = true;
+      mutableConstants.AUDIT_LOG_DB_ENABLED = false;
+    }
+  });
+
+  test("persists to database when AUDIT_LOG_DB_ENABLED is true even if stdout is disabled", async () => {
+    if (mutableConstants) {
+      mutableConstants.AUDIT_LOG_ENABLED = false;
+      mutableConstants.AUDIT_LOG_DB_ENABLED = true;
+    }
+    const handlerImpl = vi.fn().mockResolvedValue("ok");
+    const wrapped = OriginalHandler.withAuditLogging("created", "survey", handlerImpl);
+    await wrapped({ ctx: mockCtxBase as any, parsedInput: mockParsedInput });
+    await new Promise(setImmediate);
+    expect(handlerImpl).toHaveBeenCalled();
+    expect(serviceLogAuditEventMockHandle).not.toHaveBeenCalled();
+    expect(persistAuditLogEventMockHandle).toHaveBeenCalled();
+    if (mutableConstants) {
+      mutableConstants.AUDIT_LOG_ENABLED = true;
+      mutableConstants.AUDIT_LOG_DB_ENABLED = false;
+    }
   });
 
   test("resolves targetId for chart target type", async () => {
@@ -302,5 +347,35 @@ describe("withAuditLogging", () => {
     const callArgs = serviceLogAuditEventMockHandle.mock.calls[0][0];
     expect(callArgs.target.type).toBe("dashboardWidget");
     expect(callArgs.target.id).toBe("widget-1");
+  });
+
+  test("resolves targetId for emailCampaign target type", async () => {
+    const campaignCtx = {
+      ...mockCtxBase,
+      auditLoggingCtx: { ...mockCtxBase.auditLoggingCtx, emailCampaignId: "campaign-1" },
+    };
+    const handlerImpl = vi.fn().mockResolvedValue("ok");
+    const wrapped = OriginalHandler.withAuditLogging("created", "emailCampaign", handlerImpl);
+    await wrapped({ ctx: campaignCtx as any, parsedInput: mockParsedInput });
+    await new Promise(setImmediate);
+    expect(serviceLogAuditEventMockHandle).toHaveBeenCalled();
+    const callArgs = serviceLogAuditEventMockHandle.mock.calls[0][0];
+    expect(callArgs.target.type).toBe("emailCampaign");
+    expect(callArgs.target.id).toBe("campaign-1");
+  });
+
+  test("resolves targetId for emailCampaignTemplate target type", async () => {
+    const templateCtx = {
+      ...mockCtxBase,
+      auditLoggingCtx: { ...mockCtxBase.auditLoggingCtx, emailCampaignTemplateId: "template-1" },
+    };
+    const handlerImpl = vi.fn().mockResolvedValue("ok");
+    const wrapped = OriginalHandler.withAuditLogging("created", "emailCampaignTemplate", handlerImpl);
+    await wrapped({ ctx: templateCtx as any, parsedInput: mockParsedInput });
+    await new Promise(setImmediate);
+    expect(serviceLogAuditEventMockHandle).toHaveBeenCalled();
+    const callArgs = serviceLogAuditEventMockHandle.mock.calls[0][0];
+    expect(callArgs.target.type).toBe("emailCampaignTemplate");
+    expect(callArgs.target.id).toBe("template-1");
   });
 });

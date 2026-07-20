@@ -37,7 +37,7 @@ export function AddMemberRole({
     let rolesArray = ["member"];
 
     if (isOwner) {
-      rolesArray.push("manager", "owner");
+      rolesArray.push("manager", "owner", "auditor");
       if (isFormbricksCloud) {
         rolesArray.push("billing");
       }
@@ -52,6 +52,7 @@ export function AddMemberRole({
     manager: t("workspace.settings.teams.manager_role_description"),
     member: t("workspace.settings.teams.member_role_description"),
     billing: t("workspace.settings.teams.billing_role_description"),
+    auditor: t("workspace.settings.teams.auditor_role_description"),
   };
 
   return (

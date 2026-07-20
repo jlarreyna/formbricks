@@ -15,29 +15,35 @@ export const Calendar = ({ className, classNames, showOutsideDays = true, ...pro
       classNames={{
         months: "flex flex-col sm:flex-row space-y-4 sm:space-x-4 sm:space-y-0",
         month: "space-y-4",
-        caption: "flex justify-center pt-1 relative items-center",
+        month_caption: "flex justify-center pt-1 relative items-center",
         caption_label: "text-sm font-medium",
-        nav: "space-x-1 flex items-center",
-        nav_button: cn(
-          "hover:text-slate-700 hover:bg-slate-200 flex justify-center items-center rounded-md transition-colors duration-150 ease-in-out h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        nav: "flex items-center",
+        button_previous: cn(
+          "absolute left-1 hover:text-slate-700 hover:bg-slate-200 flex justify-center items-center rounded-md transition-colors duration-150 ease-in-out h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
         ),
-        nav_button_previous: "absolute left-1",
-        nav_button_next: "absolute right-1",
-        table: "w-full border-collapse space-y-1",
-        head_row: "flex",
-        head_cell: "text-slate-500 rounded-md w-9 font-normal text-[0.8rem]",
-        row: "flex w-full mt-2",
-        cell: "text-center text-sm p-0 relative has-aria-[selected]:bg-slate-200 first:has-aria-[selected]:rounded-l-md last:has-aria-[selected]:rounded-r-md focus-within:relative focus-within:z-20",
+        button_next: cn(
+          "absolute right-1 hover:text-slate-700 hover:bg-slate-200 flex justify-center items-center rounded-md transition-colors duration-150 ease-in-out h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+        ),
+        month_grid: "w-full border-collapse space-y-1",
+        weekdays: "flex",
+        weekday: "text-slate-500 rounded-md w-9 font-normal text-[0.8rem]",
+        week: "flex w-full mt-2",
         day: cn(
-          "hover:bg-slate-200 rounded-md p-0",
-          "h-9 w-9 p-0 font-normal aria-selected:opacity-100 text-center"
+          "text-center text-sm p-0 relative first:[&_button]:rounded-l-md last:[&_button]:rounded-r-md",
+          "focus-within:relative focus-within:z-20"
         ),
-        day_selected: "bg-black text-white aria-selected:bg-black aria-selected:text-white",
-        day_today: "bg-slate-200 aria-selected:bg-black aria-selected:text-white",
-        day_outside: "text-slate-500 opacity-50",
-        day_disabled: "text-slate-500 opacity-50 cursor-not-allowed",
-        day_range_middle: "aria-selected:bg-slate-200",
-        day_hidden: "invisible",
+        day_button: "hover:bg-slate-200 rounded-md h-9 w-9 p-0 font-normal text-center transition-colors",
+        selected:
+          "[&_button]:bg-black [&_button]:text-white [&_button]:hover:bg-black [&_button]:hover:text-white",
+        today: "[&_button]:bg-slate-200 [&_button]:font-semibold",
+        range_start:
+          "[&_button]:bg-black [&_button]:text-white [&_button]:hover:bg-black [&_button]:hover:text-white",
+        range_end:
+          "[&_button]:bg-black [&_button]:text-white [&_button]:hover:bg-black [&_button]:hover:text-white",
+        range_middle: "[&_button]:rounded-none [&_button]:bg-slate-200 [&_button]:text-slate-900",
+        outside: "text-slate-500 opacity-50 [&_button]:opacity-50",
+        disabled: "text-slate-500 opacity-50 cursor-not-allowed",
+        hidden: "invisible",
         ...classNames,
       }}
       components={{

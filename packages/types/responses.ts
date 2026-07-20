@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { ZId } from "./common";
 import { ZSurveyQuota } from "./quota";
+import { ZResponseAnalysis, ZResponseAnalysisSentiment } from "./response-analysis";
 import { ZSurvey } from "./surveys/types";
 import { ZTag } from "./tags";
 
@@ -352,6 +353,9 @@ export const ZResponse = z.object({
   meta: ZResponseMeta,
   singleUseId: z.string().nullable(),
   language: z.string().nullable(),
+  // Unattended AI analysis of the response (sentiment, severity, categories, etc), generated
+  // asynchronously once the response is finished. Absent until the background job completes.
+  analysis: ZResponseAnalysis.nullish(),
 });
 
 export type TResponse = z.infer<typeof ZResponse>;
@@ -447,6 +451,8 @@ export const ZResponseTableData = z.object({
   contactAttributes: ZResponseContactAttributes,
   meta: ZResponseMeta,
   quotas: z.array(z.string()).optional(),
+  sentiment: ZResponseAnalysisSentiment.nullable(),
+  emotion: z.string().nullable(),
 });
 
 export type TResponseTableData = z.infer<typeof ZResponseTableData>;

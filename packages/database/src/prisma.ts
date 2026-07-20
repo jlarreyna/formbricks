@@ -31,6 +31,7 @@ export type {
   ResponseQuotaLink,
   SurveyFollowUp,
   ActionClass,
+  AuditLog,
   Integration,
   DataMigration,
   Workspace,
@@ -80,6 +81,7 @@ export namespace Prisma {
     GlobalOmitOptions = {},
   > = PrismaNamespaceTypes.TypeMap<ExtArgs, GlobalOmitOptions>;
   export type ActionClassSelect = PrismaModelTypes.ActionClassSelect;
+  export type AuditLogWhereInput = PrismaModelTypes.AuditLogWhereInput;
   export type ChartFindManyArgs = PrismaModelTypes.ChartFindManyArgs;
   export type ContactAttributeKeyCreateInput = PrismaModelTypes.ContactAttributeKeyCreateInput;
   export type ContactAttributeKeyCreateWithoutWorkspaceInput =
@@ -106,6 +108,7 @@ export namespace Prisma {
   export type FloatNullableFilter = PrismaModelTypes.FloatNullableFilter;
   export type LanguageCreateWithoutWorkspaceInput = PrismaModelTypes.LanguageCreateWithoutWorkspaceInput;
   export type LanguageSelect = PrismaModelTypes.LanguageSelect;
+  export type MembershipWhereInput = PrismaModelTypes.MembershipWhereInput;
   export type OrganizationBillingGetPayload<
     S extends boolean | null | undefined | PrismaModelTypes.OrganizationBillingDefaultArgs,
   > = PrismaModelTypes.OrganizationBillingGetPayload<S>;

@@ -54,7 +54,7 @@ export const getWorkspaceAuth = reactCache(async (workspaceId: string): Promise<
     throw new AuthorizationError(t("common.membership_not_found"));
   }
 
-  const { isMember, isOwner, isManager, isBilling } = getAccessFlags(currentUserMembership.role);
+  const { isMember, isOwner, isManager, isBilling, isAuditor } = getAccessFlags(currentUserMembership.role);
 
   const workspacePermission = await getWorkspacePermissionByUserId(session.user.id, workspace.id);
 
@@ -72,6 +72,7 @@ export const getWorkspaceAuth = reactCache(async (workspaceId: string): Promise<
     isOwner,
     isManager,
     isBilling,
+    isAuditor,
     hasReadAccess,
     hasReadWriteAccess,
     hasManageAccess,

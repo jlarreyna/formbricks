@@ -91,6 +91,7 @@ describe("onboarding-workspace", () => {
       isManager: false,
       isBilling: false,
       isMember: false,
+      isAuditor: false,
     });
     vi.mocked(getOrganization).mockResolvedValue(mockOrganization);
     vi.mocked(getIsAISmartToolsEnabled).mockResolvedValue(true);
@@ -178,6 +179,7 @@ describe("onboarding-workspace", () => {
       isManager: false,
       isBilling: false,
       isMember: false,
+      isAuditor: false,
     });
 
     await expect(getOnboardingWorkspaceContext({ userId: "user1", organizationId: "org1" })).rejects.toThrow(

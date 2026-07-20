@@ -4,6 +4,7 @@ import { prisma } from "@formbricks/database";
 import { Prisma } from "@formbricks/database/prisma";
 import { logger } from "@formbricks/logger";
 import { ZId, ZOptionalNumber, ZOptionalString } from "@formbricks/types/common";
+import { TContactAttributesInput, ZContactAttributesInput } from "@formbricks/types/contact-attribute";
 import { TContactAttributeDataType } from "@formbricks/types/contact-attribute-key";
 import { DatabaseError, ValidationError } from "@formbricks/types/errors";
 import { ITEMS_PER_PAGE } from "@/lib/constants";
@@ -15,9 +16,15 @@ import {
   getReservedFutureDefaultAttributeKeys,
 } from "@/modules/ee/contacts/lib/attribute-key-policy";
 import { prepareAttributeColumnsForStorage } from "@/modules/ee/contacts/lib/attribute-storage";
+import { TAttributeUpdateMessage } from "@/modules/ee/contacts/lib/attributes";
+import { getContactAttributeKeys } from "@/modules/ee/contacts/lib/contact-attribute-keys";
 import { getContactSurveyLink } from "@/modules/ee/contacts/lib/contact-survey-link";
 import { detectAttributeDataType } from "@/modules/ee/contacts/lib/detect-attribute-type";
 import { SEGMENT_SURVEY_WORKSPACE_MISMATCH_ERROR_CODE } from "@/modules/ee/contacts/lib/personal-link-errors";
+import {
+  formatValidationError,
+  validateAndParseAttributeValue,
+} from "@/modules/ee/contacts/lib/validate-attribute-type";
 import { segmentFilterToPrismaQuery } from "@/modules/ee/contacts/segments/lib/filter/prisma-query";
 import { getSegment } from "@/modules/ee/contacts/segments/lib/segments";
 import {
@@ -209,6 +216,125 @@ export const deleteContact = async (contactId: string): Promise<TContact | null>
       throw new DatabaseError(error.message);
     }
 
+    throw error;
+  }
+};
+
+export type TCreateContactResult =
+  | { contact: TContactWithAttributes }
+  | { messages: TAttributeUpdateMessage[] };
+
+/**
+ * Creates a single contact manually (e.g. from the "Create contact" dialog), as opposed to the
+ * bulk `createContactsFromCSV` import path. Only allows setting values for attribute keys that
+ * already exist in the workspace - creating brand-new attribute keys inline is not supported here
+ * (use the Attributes page for that), which keeps the duplicate-check and type-validation logic simple.
+ */
+export const createContact = async (
+  workspaceId: string,
+  attributes: TContactAttributesInput
+): Promise<TCreateContactResult> => {
+  validateInputs([workspaceId, ZId], [attributes, ZContactAttributesInput]);
+
+  const emailValue =
+    attributes.email !== undefined && attributes.email !== null ? String(attributes.email).trim() : "";
+  const userIdValue =
+    attributes.userId !== undefined && attributes.userId !== null ? String(attributes.userId).trim() : "";
+
+  if (!emailValue && !userIdValue) {
+    throw new ValidationError("Either email or userId is required to create a contact");
+  }
+
+  const [contactAttributeKeys, existingEmailAttribute, existingUserIdAttribute] = await Promise.all([
+    getContactAttributeKeys(workspaceId),
+    emailValue
+      ? prisma.contactAttribute.findFirst({
+          where: { attributeKey: { key: "email", workspaceId }, value: emailValue },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+    userIdValue
+      ? prisma.contactAttribute.findFirst({
+          where: { attributeKey: { key: "userId", workspaceId }, value: userIdValue },
+          select: { id: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  const messages: TAttributeUpdateMessage[] = [];
+
+  if (existingEmailAttribute) {
+    messages.push({ code: "email_already_exists", params: {} });
+  }
+
+  if (existingUserIdAttribute) {
+    messages.push({ code: "userid_already_exists", params: {} });
+  }
+
+  if (messages.length > 0) {
+    return { messages };
+  }
+
+  const attributeKeyMap = new Map(
+    contactAttributeKeys.map((attributeKey) => [attributeKey.key, attributeKey])
+  );
+  const attributeConnections: {
+    attributeKeyId: string;
+    value: string;
+    valueNumber: number | null;
+    valueDate: Date | null;
+  }[] = [];
+
+  // The SDK/UI may send booleans for string attributes; coerce to string before type validation.
+  const coercedAttributes: Record<string, string | number> = {};
+  for (const [key, value] of Object.entries(attributes)) {
+    coercedAttributes[key] = typeof value === "boolean" ? String(value) : value;
+  }
+
+  for (const [key, value] of Object.entries(coercedAttributes)) {
+    const attributeKey = attributeKeyMap.get(key);
+    if (!attributeKey) {
+      // The UI only offers existing attribute keys, but guard defensively against stale payloads.
+      continue;
+    }
+
+    const validationResult = validateAndParseAttributeValue(value, attributeKey.dataType, key);
+    if (!validationResult.valid) {
+      messages.push({
+        code: "attribute_type_validation_error",
+        params: {
+          key,
+          dataType: attributeKey.dataType,
+          error: formatValidationError(validationResult.error),
+        },
+      });
+      continue;
+    }
+
+    attributeConnections.push({
+      attributeKeyId: attributeKey.id,
+      ...validationResult.parsedValue,
+    });
+  }
+
+  if (messages.length > 0) {
+    return { messages };
+  }
+
+  try {
+    const contact = await prisma.contact.create({
+      data: {
+        workspaceId,
+        attributes: { create: attributeConnections },
+      },
+      select: selectContact,
+    });
+
+    return { contact: transformPrismaContact(contact) };
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+      throw new DatabaseError(error.message);
+    }
     throw error;
   }
 };

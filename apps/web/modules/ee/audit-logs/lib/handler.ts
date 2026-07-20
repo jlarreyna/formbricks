@@ -1,9 +1,10 @@
 import { logger } from "@formbricks/logger";
-import { AUDIT_LOG_ENABLED, AUDIT_LOG_GET_USER_IP } from "@/lib/constants";
+import { AUDIT_LOG_DB_ENABLED, AUDIT_LOG_ENABLED, AUDIT_LOG_GET_USER_IP } from "@/lib/constants";
 import { ActionClientCtx } from "@/lib/utils/action-client/types/context";
 import { getClientIpFromHeaders } from "@/lib/utils/client-ip";
 import { getOrganizationIdFromWorkspaceId } from "@/lib/utils/helper";
 import { deepDiff, redactPII } from "@/lib/utils/logger-helpers";
+import { persistAuditLogEvent } from "@/modules/ee/audit-logs/lib/persist";
 import { logAuditEvent } from "@/modules/ee/audit-logs/lib/service";
 import {
   TActor,
@@ -51,7 +52,10 @@ export const buildAndLogAuditEvent = async ({
   eventId,
   apiUrl,
 }: TBuildAuditEventInput) => {
-  if (!AUDIT_LOG_ENABLED && !(await getIsAuditLogsEnabled())) {
+  const stdoutEnabled = AUDIT_LOG_ENABLED || (await getIsAuditLogsEnabled());
+  const dbEnabled = AUDIT_LOG_DB_ENABLED;
+
+  if (!stdoutEnabled && !dbEnabled) {
     return;
   }
 
@@ -80,7 +84,13 @@ export const buildAndLogAuditEvent = async ({
       ...(status === "failure" && eventId ? { eventId } : {}),
     };
 
-    await logAuditEvent(auditEvent);
+    if (stdoutEnabled) {
+      await logAuditEvent(auditEvent);
+    }
+
+    if (dbEnabled) {
+      await persistAuditLogEvent(auditEvent);
+    }
   } catch (logError) {
     logger.error(logError, "Failed to create audit log event");
   }
@@ -223,7 +233,7 @@ export const withAuditLogging = <
       error = err;
     }
 
-    if (!AUDIT_LOG_ENABLED) {
+    if (!AUDIT_LOG_ENABLED && !AUDIT_LOG_DB_ENABLED) {
       if (status === "failure") throw error;
       return result;
     }
@@ -316,6 +326,12 @@ export const withAuditLogging = <
             break;
           case "feedbackDirectory":
             targetId = auditLoggingCtx.feedbackDirectoryId;
+            break;
+          case "emailCampaign":
+            targetId = auditLoggingCtx.emailCampaignId;
+            break;
+          case "emailCampaignTemplate":
+            targetId = auditLoggingCtx.emailCampaignTemplateId;
             break;
           default:
             targetId = UNKNOWN_DATA;

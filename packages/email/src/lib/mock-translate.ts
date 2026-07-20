@@ -70,7 +70,7 @@ const translations: Record<TranslationKey, TranslationValue> = {
   "emails.survey_response_finished_email_dont_want_notifications": "Don't want to get these notifications?",
   "emails.survey_response_finished_email_hey": "Hey 👋",
   "emails.survey_response_finished_email_turn_off_notifications_for_all_new_forms":
-    "Turn off notifications for all newly created forms",
+    "Turn off notifications for all forms in this organization",
   "emails.survey_response_finished_email_turn_off_notifications_for_this_form":
     "Turn off notifications for this form",
   "emails.survey_response_finished_email_view_more_responses": "View {responseCount} more responses",

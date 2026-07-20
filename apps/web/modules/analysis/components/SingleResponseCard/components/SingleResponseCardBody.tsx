@@ -16,6 +16,7 @@ import { isValidValue } from "../util";
 import { ElementSkip } from "./ElementSkip";
 import { HiddenFields } from "./HiddenFields";
 import { RenderResponse } from "./RenderResponse";
+import { ResponseAnalysisSection } from "./ResponseAnalysisSection";
 import { ResponseVariables } from "./ResponseVariables";
 import { VerifiedEmail } from "./VerifiedEmail";
 
@@ -47,7 +48,7 @@ export const SingleResponseCardBody = ({
         return (
           <span
             key={index}
-            className="ml-0.5 mr-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-0.5 text-sm first:ml-0">
+            className="mr-0.5 ml-0.5 rounded-md border border-slate-200 bg-slate-50 px-1 py-0.5 text-sm first:ml-0">
             @{part}
           </span>
         );
@@ -149,6 +150,8 @@ export const SingleResponseCardBody = ({
       )}
 
       <ResponseCardQuotas quotas={response.quotas} />
+
+      <ResponseAnalysisSection analysis={response.analysis} />
 
       {response.finished && (
         <div className="mt-4 flex items-center">

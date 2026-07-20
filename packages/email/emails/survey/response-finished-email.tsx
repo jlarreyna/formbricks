@@ -9,6 +9,7 @@ import { EmailTemplate } from "../../src/components/email-template";
 import { renderEmailResponseValue } from "../../src/lib/email-utils";
 import { exampleData } from "../../src/lib/example-data";
 import { t as mockT } from "../../src/lib/mock-translate";
+import { getAccountNotificationSettingsUrl } from "../../src/lib/notification-settings-urls";
 import { TEmailTemplateLegalProps } from "../../src/types/email";
 import { ProcessedResponseElement } from "../../src/types/follow-up";
 import { TFunction } from "../../src/types/translations";
@@ -137,14 +138,18 @@ export function ResponseFinishedEmail({
               <Text className="mb-0">
                 <Link
                   className="text-sm text-black underline"
-                  href={`${WEBAPP_URL}/workspaces/${workspaceId}/settings/notifications?type=alert&elementId=${survey.id}`}>
+                  href={getAccountNotificationSettingsUrl(WEBAPP_URL, "alert", survey.id)}>
                   {t("emails.survey_response_finished_email_turn_off_notifications_for_this_form")}
                 </Link>
               </Text>
               <Text className="mt-0">
                 <Link
                   className="text-sm text-black underline"
-                  href={`${WEBAPP_URL}/workspaces/${workspaceId}/settings/notifications?type=unsubscribedOrganizationIds&elementId=${organization.id}`}>
+                  href={getAccountNotificationSettingsUrl(
+                    WEBAPP_URL,
+                    "unsubscribedOrganizationIds",
+                    organization.id
+                  )}>
                   {t("emails.survey_response_finished_email_turn_off_notifications_for_all_new_forms")}
                 </Link>
               </Text>

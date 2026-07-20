@@ -1,0 +1,6 @@
+email,travel_network,flight_number,origin,destination,flight_date,cabin,ar_plus_category,pnr,booking_id,contact_id,contact_email,passenger_name
+jose.larreyna@gmail.com,Internacional,AR1280,EZE,MAD,2026-07-25,Business,Black,PNRJL001,BKG900001,crm_jose_larreyna,jose.larreyna@gmail.com,Jose Larreyna
+olivia.bennett@crown-jets.uk,Internacional,AR1450,EZE,LHR,2026-07-26,First,Black Signature,PNROB002,BKG900002,crm_olivia_bennett,olivia.bennett@crown-jets.uk,Olivia Bennett
+alexandre.costa@azul-fleet.br,Regional,AR2105,EZE,GRU,2026-07-27,Premium Economy,Platinum,PNRAC003,BKG900003,crm_alexandre_costa,alexandre.costa@azul-fleet.br,Alexandre Costa
+emily.chen@pacific-heli.au,Cabotaje,AR1402,AEP,COR,2026-07-28,Economy,Gold,PNREC004,BKG900004,crm_emily_chen,emily.chen@pacific-heli.au,Emily Chen
+camila.torres@anac.gov.ar,Cabotaje,AR1630,AEP,MDZ,2026-07-29,Economy,Classic,PNRCT005,BKG900005,crm_camila_torres,camila.torres@anac.gov.ar,Camila Torres

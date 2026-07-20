@@ -4,7 +4,13 @@ import type {
   TRecurringBackgroundJobSchedule,
   TRunAtBackgroundJobSchedule,
 } from "@/src/schedules";
-import type { TResponsePipelineJobData, TSurveySchedulingJobData, TTestLogJobData } from "@/src/types";
+import type {
+  TEmailCampaignRecipientJobData,
+  TResponseAnalysisJobData,
+  TResponsePipelineJobData,
+  TSurveySchedulingJobData,
+  TTestLogJobData,
+} from "@/src/types";
 
 export interface JobExecutionContext {
   attempt: number;
@@ -55,6 +61,8 @@ export interface BackgroundJobProducer {
   enqueueResponsePipeline: (data: TResponsePipelineJobData) => Promise<EnqueuedJob>;
   enqueueSurveyScheduling: (data: TSurveySchedulingJobData) => Promise<EnqueuedJob>;
   enqueueTestLog: (data: TTestLogJobData) => Promise<EnqueuedJob>;
+  enqueueEmailCampaignRecipient: (data: TEmailCampaignRecipientJobData) => Promise<EnqueuedJob>;
+  enqueueResponseAnalysis: (data: TResponseAnalysisJobData) => Promise<EnqueuedJob>;
   scheduleResponsePipelineAt: (
     schedule: TRunAtBackgroundJobSchedule,
     data: TResponsePipelineJobData

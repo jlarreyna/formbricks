@@ -5,14 +5,18 @@ import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
 import { TUserNotificationSettings } from "@formbricks/types/user";
-import { getFormattedErrorMessage } from "@/lib/utils/helper";
 import { Switch } from "@/modules/ui/components/switch";
-import { updateNotificationSettingsAction } from "../actions";
+import { toggleOrganizationAutoSubscribe, toggleSurveyAlert } from "../lib/notification-settings";
 
 interface NotificationSwitchProps {
   surveyOrWorkspaceOrOrganizationId: string;
   notificationSettings: TUserNotificationSettings;
+  persistNotificationSettings: (
+    compute: (current: TUserNotificationSettings) => TUserNotificationSettings
+  ) => Promise<boolean>;
   notificationType: "alert" | "unsubscribedOrganizationIds";
+  /** Survey IDs in the org; required when toggling organization auto-subscribe off. */
+  organizationSurveyIds?: string[];
   autoDisableNotificationType?: string;
   autoDisableNotificationElementId?: string;
 }
@@ -20,7 +24,9 @@ interface NotificationSwitchProps {
 export const NotificationSwitch = ({
   surveyOrWorkspaceOrOrganizationId,
   notificationSettings,
+  persistNotificationSettings,
   notificationType,
+  organizationSurveyIds = [],
   autoDisableNotificationType,
   autoDisableNotificationElementId,
 }: NotificationSwitchProps) => {
@@ -33,43 +39,20 @@ export const NotificationSwitch = ({
       : notificationSettings[notificationType]?.[surveyOrWorkspaceOrOrganizationId] === true;
 
   const handleSwitchChange = async () => {
+    if (isLoading) {
+      return;
+    }
+
     setIsLoading(true);
 
-    let updatedNotificationSettings = { ...notificationSettings };
-    if (notificationType === "unsubscribedOrganizationIds") {
-      const unsubscribedOrganizationIds = updatedNotificationSettings.unsubscribedOrganizationIds ?? [];
-      if (unsubscribedOrganizationIds.includes(surveyOrWorkspaceOrOrganizationId)) {
-        updatedNotificationSettings.unsubscribedOrganizationIds = unsubscribedOrganizationIds.filter(
-          (id) => id !== surveyOrWorkspaceOrOrganizationId
-        );
-      } else {
-        updatedNotificationSettings.unsubscribedOrganizationIds = [
-          ...unsubscribedOrganizationIds,
-          surveyOrWorkspaceOrOrganizationId,
-        ];
-      }
-    } else {
-      updatedNotificationSettings[notificationType] = {
-        ...updatedNotificationSettings[notificationType],
-        [surveyOrWorkspaceOrOrganizationId]:
-          !updatedNotificationSettings[notificationType]?.[surveyOrWorkspaceOrOrganizationId],
-      };
-    }
+    await persistNotificationSettings((current) =>
+      notificationType === "unsubscribedOrganizationIds"
+        ? toggleOrganizationAutoSubscribe(current, surveyOrWorkspaceOrOrganizationId, organizationSurveyIds)
+        : toggleSurveyAlert(current, surveyOrWorkspaceOrOrganizationId)
+    );
 
-    const updatedNotificationSettingsActionResponse = await updateNotificationSettingsAction({
-      notificationSettings: updatedNotificationSettings,
-    });
-    if (updatedNotificationSettingsActionResponse?.data) {
-      toast.success(t("workspace.settings.notifications.notification_settings_updated"), {
-        id: "notification-switch",
-      });
-      router.refresh();
-    } else {
-      const errorMessage = getFormattedErrorMessage(updatedNotificationSettingsActionResponse);
-      toast.error(errorMessage, {
-        id: "notification-switch",
-      });
-    }
+    // Refresh from server after success or failure so UI matches persisted settings.
+    router.refresh();
     setIsLoading(false);
   };
 
@@ -82,15 +65,16 @@ export const NotificationSwitch = ({
       switch (notificationType) {
         case "alert":
           if (notificationSettings[notificationType]?.[surveyOrWorkspaceOrOrganizationId] === true) {
-            handleSwitchChange();
-            toast.success(
-              t(
-                "workspace.settings.notifications.you_will_not_receive_any_more_emails_for_responses_on_this_survey"
-              ),
-              {
-                id: "notification-switch",
-              }
-            );
+            void handleSwitchChange().then(() => {
+              toast.success(
+                t(
+                  "workspace.settings.notifications.you_will_not_receive_any_more_emails_for_responses_on_this_survey"
+                ),
+                {
+                  id: "notification-switch-auto-disable",
+                }
+              );
+            });
           }
           break;
 
@@ -98,15 +82,16 @@ export const NotificationSwitch = ({
           if (
             !notificationSettings.unsubscribedOrganizationIds?.includes(surveyOrWorkspaceOrOrganizationId)
           ) {
-            handleSwitchChange();
-            toast.success(
-              t(
-                "workspace.settings.notifications.you_will_not_be_auto_subscribed_to_this_organizations_surveys_anymore"
-              ),
-              {
-                id: "notification-switch",
-              }
-            );
+            void handleSwitchChange().then(() => {
+              toast.success(
+                t(
+                  "workspace.settings.notifications.you_will_not_be_auto_subscribed_to_this_organizations_surveys_anymore"
+                ),
+                {
+                  id: "notification-switch-auto-disable",
+                }
+              );
+            });
           }
           break;
 
@@ -119,12 +104,12 @@ export const NotificationSwitch = ({
 
   return (
     <Switch
-      id="notification-switch"
-      aria-label={`toggle notification settings for ${notificationType}`}
+      id={`notification-switch-${notificationType}-${surveyOrWorkspaceOrOrganizationId}`}
+      aria-label={`toggle notification settings for ${notificationType} ${surveyOrWorkspaceOrOrganizationId}`}
       checked={isChecked}
       disabled={isLoading}
-      onCheckedChange={async () => {
-        await handleSwitchChange();
+      onCheckedChange={() => {
+        void handleSwitchChange();
       }}
     />
   );

@@ -160,6 +160,12 @@ export const ZGeneratedSurveyElementForAI = z
   .object({
     ...generatedSurveyElementShape,
     range: ZGeneratedRatingRangeForAI.nullable(),
+    // OpenAI strict structured outputs require every key in `properties` to also be in
+    // `required`; drop `.optional()` here (unlike the shared shape) while keeping `.nullable()`
+    // so the model always returns these keys (as `null` when not applicable).
+    rows: ZGeneratedChoiceList.nullable(),
+    columns: ZGeneratedChoiceList.nullable(),
+    format: z.enum(["M-d-y", "d-M-y", "y-M-d"]).nullable(),
   })
   .strict()
   .superRefine(validateGeneratedSurveyElement);

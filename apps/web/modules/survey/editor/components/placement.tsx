@@ -81,7 +81,7 @@ export const Placement = ({
           defaultSelected={overlay}
           onChange={(value) => setOverlay(value)}
           label={t("common.overlay_color")}
-          activeTabClassName="bg-slate-200"
+          activeTabClassName="bg-slate-200 text-slate-900"
           inactiveTabClassName="bg-transparent"
         />
       </div>

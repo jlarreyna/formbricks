@@ -24,6 +24,16 @@ export const rateLimitConfigs = {
       allowedPerInterval: 1000,
       namespace: "api:client:environment",
     }, // 1000 per minute per environment (Client API)
+    emailCampaignsCreate: {
+      interval: 3600,
+      allowedPerInterval: 20,
+      namespace: "api:v2:email-campaigns:create",
+    }, // 20 campaign creations per hour per API key — each can fan out into thousands of emails
+    emailCampaignTemplatesCreate: {
+      interval: 3600,
+      allowedPerInterval: 60,
+      namespace: "api:v2:email-campaign-templates:create",
+    }, // 60 template creations per hour per API key
   },
 
   // Server actions - varies by action type

@@ -68,6 +68,10 @@ export const updateInviteAction = authenticatedActionClient.inputSchema(ZUpdateI
       throw new ValidationError("Billing role is not allowed");
     }
 
+    if (parsedInput.data.role === "auditor" && currentUserMembership.role !== "owner") {
+      throw new OperationNotAllowedError("Only owners can assign the auditor role");
+    }
+
     if (currentUserMembership.role === "manager" && parsedInput.data.role !== "member") {
       throw new OperationNotAllowedError("Managers can only invite members");
     }
@@ -124,6 +128,10 @@ export const updateMembershipAction = authenticatedActionClient.inputSchema(ZUpd
 
     if (!IS_FORMBRICKS_CLOUD && parsedInput.data.role === "billing") {
       throw new ValidationError("Billing role is not allowed");
+    }
+
+    if (parsedInput.data.role === "auditor" && currentUserMembership.role !== "owner") {
+      throw new OperationNotAllowedError("Only owners can assign the auditor role");
     }
 
     if (currentUserMembership.role === "manager" && parsedInput.data.role !== "member") {

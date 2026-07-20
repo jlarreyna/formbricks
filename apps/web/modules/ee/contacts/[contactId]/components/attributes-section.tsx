@@ -1,6 +1,8 @@
+import { EyeIcon, MessageSquareTextIcon } from "lucide-react";
 import { ResourceNotFoundError } from "@formbricks/types/errors";
 import { getDisplaysByContactId } from "@/lib/display/service";
 import { getResponsesByContactId } from "@/lib/response/service";
+import { formatDate } from "@/lib/time";
 import { getLocale } from "@/lingodotdev/language";
 import { getTranslate } from "@/lingodotdev/server";
 import { getContactAttributesWithKeyInfo } from "@/modules/ee/contacts/lib/contact-attributes";
@@ -49,55 +51,67 @@ export const AttributesSection = async ({ contactId }: { contactId: string }) =>
     return formatAttributeValue(attr.value, attr.dataType, locale);
   };
 
-  return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-bold text-slate-700">{t("workspace.contacts.system_attributes")}</h2>
-
-      {systemAttributes.map((attr) => (
-        <div key={attr.key}>
-          <dt className="flex items-center gap-2 text-sm font-medium text-slate-500">
+  const renderAttributeList = (attrs: typeof attributesWithKeyInfo) => (
+    <dl className="divide-y divide-slate-100">
+      {attrs.map((attr) => (
+        <div key={attr.key} className="flex items-start justify-between gap-4 px-5 py-3">
+          <dt className="flex items-center gap-2 text-sm text-slate-500">
             <span className="text-slate-400">{getContactAttributeDataTypeIcon(attr.dataType)}</span>
             <span>{attr.name || attr.key}</span>
           </dt>
-          <dd className="ph-no-capture mt-1 text-sm text-slate-900">{renderAttributeValue(attr)}</dd>
+          <dd className="ph-no-capture max-w-[60%] text-right text-sm font-medium break-words text-slate-800">
+            {renderAttributeValue(attr)}
+          </dd>
         </div>
       ))}
+    </dl>
+  );
 
-      <div>
-        <dt className="flex items-center gap-2 text-sm font-medium text-slate-500">
-          <span className="text-slate-400">{getContactAttributeDataTypeIcon("string")}</span>
-          <span>contactId</span>
-        </dt>
-        <dd className="ph-no-capture mt-1 text-sm text-slate-900">{contact.id}</dd>
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-xs">
+        <dl>
+          <div className="flex items-center justify-between gap-2">
+            <dt className="text-sm text-slate-500">{t("common.id")}</dt>
+            <dd className="ph-no-capture">
+              <IdBadge id={contact.id} copyDisabled={false} />
+            </dd>
+          </div>
+          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+            <dt className="text-sm text-slate-500">{t("common.created_at")}</dt>
+            <dd className="text-sm font-medium text-slate-800">{formatDate(contact.createdAt, locale)}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="flex flex-col items-center gap-1 rounded-lg bg-slate-50 py-3">
+            <MessageSquareTextIcon className="size-4 text-slate-400" />
+            <span className="text-lg font-semibold text-slate-800">{numberOfResponses}</span>
+            <span className="text-xs text-slate-500">{t("common.responses")}</span>
+          </div>
+          <div className="flex flex-col items-center gap-1 rounded-lg bg-slate-50 py-3">
+            <EyeIcon className="size-4 text-slate-400" />
+            <span className="text-lg font-semibold text-slate-800">{numberOfDisplays}</span>
+            <span className="text-xs text-slate-500">{t("workspace.contacts.displays")}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
+        <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700">
+          {t("workspace.contacts.system_attributes")}
+        </h2>
+        {renderAttributeList(systemAttributes)}
       </div>
 
       {customAttributes.length > 0 && (
-        <>
-          <hr />
-          <h2 className="text-lg font-bold text-slate-700">{t("workspace.contacts.custom_attributes")}</h2>
-          {customAttributes.map((attr) => (
-            <div key={attr.key}>
-              <dt className="flex items-center gap-2 text-sm font-medium text-slate-500">
-                <span className="text-slate-400">{getContactAttributeDataTypeIcon(attr.dataType)}</span>
-                <span>{attr.name || attr.key}</span>
-              </dt>
-              <dd className="mt-1 text-sm text-slate-900">{renderAttributeValue(attr)}</dd>
-            </div>
-          ))}
-        </>
+        <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
+          <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700">
+            {t("workspace.contacts.custom_attributes")}
+          </h2>
+          {renderAttributeList(customAttributes)}
+        </div>
       )}
-
-      <hr />
-
-      <div>
-        <dt className="text-sm font-medium text-slate-500">{t("common.responses")}</dt>
-        <dd className="mt-1 text-sm text-slate-900">{numberOfResponses}</dd>
-      </div>
-
-      <div>
-        <dt className="text-sm font-medium text-slate-500">{t("workspace.contacts.displays")}</dt>
-        <dd className="mt-1 text-sm text-slate-900">{numberOfDisplays}</dd>
-      </div>
     </div>
   );
 };

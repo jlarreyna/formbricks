@@ -2,11 +2,16 @@
 
 import { HelpCircleIcon, UsersIcon } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
-import { TUser } from "@formbricks/types/user";
+import { TUser, TUserNotificationSettings } from "@formbricks/types/user";
+import { getFormattedErrorMessage } from "@/lib/utils/helper";
 import { organizationSettingsPath } from "@/modules/settings/lib/routes";
 import { EmptyState } from "@/modules/ui/components/empty-state";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/modules/ui/components/tooltip";
+import { updateNotificationSettingsAction } from "../actions";
+import { getOrganizationSurveyIds } from "../lib/notification-settings";
 import { Membership } from "../types";
 import { NotificationSwitch } from "./NotificationSwitch";
 
@@ -24,6 +29,54 @@ export const EditAlerts = ({
   autoDisableNotificationElementId,
 }: EditAlertsProps) => {
   const { t } = useTranslation();
+  const [notificationSettings, setNotificationSettings] = useState<TUserNotificationSettings>(
+    user.notificationSettings
+  );
+  const notificationSettingsRef = useRef(notificationSettings);
+  const persistQueueRef = useRef(Promise.resolve());
+
+  useEffect(() => {
+    notificationSettingsRef.current = user.notificationSettings;
+    setNotificationSettings(user.notificationSettings);
+  }, [user.notificationSettings]);
+
+  const persistNotificationSettings = (
+    compute: (current: TUserNotificationSettings) => TUserNotificationSettings
+  ): Promise<boolean> => {
+    const next = compute(notificationSettingsRef.current);
+    notificationSettingsRef.current = next;
+    setNotificationSettings(next);
+
+    const persistPromise = persistQueueRef.current
+      .catch(() => undefined)
+      .then(async () => {
+        // Persist the latest in-memory settings so concurrent toggles do not overwrite each other.
+        const toSave = notificationSettingsRef.current;
+        const response = await updateNotificationSettingsAction({
+          notificationSettings: toSave,
+        });
+
+        if (!response?.data) {
+          const errorMessage = getFormattedErrorMessage(response);
+          toast.error(errorMessage, {
+            id: "notification-switch",
+          });
+          return false;
+        }
+
+        toast.success(t("workspace.settings.notifications.notification_settings_updated"), {
+          id: "notification-switch",
+        });
+        return true;
+      });
+
+    persistQueueRef.current = persistPromise.then(
+      () => undefined,
+      () => undefined
+    );
+
+    return persistPromise;
+  };
 
   if (memberships.length === 0) {
     return <EmptyState text={t("common.no_surveys_found")} variant="simple" />;
@@ -46,8 +99,10 @@ export const EditAlerts = ({
               </p>
               <NotificationSwitch
                 surveyOrWorkspaceOrOrganizationId={membership.organization.id}
-                notificationSettings={user.notificationSettings!}
+                notificationSettings={notificationSettings}
+                persistNotificationSettings={persistNotificationSettings}
                 notificationType={"unsubscribedOrganizationIds"}
+                organizationSurveyIds={getOrganizationSurveyIds(memberships, membership.organization.id)}
                 autoDisableNotificationType={autoDisableNotificationType}
                 autoDisableNotificationElementId={autoDisableNotificationElementId}
               />
@@ -78,7 +133,7 @@ export const EditAlerts = ({
                     {workspace.surveys.map((survey) => (
                       <div
                         className="grid h-auto w-full cursor-pointer grid-cols-3 place-content-center rounded-lg px-2 py-2 text-left text-sm text-slate-900 hover:bg-slate-50"
-                        key={survey.name}>
+                        key={survey.id}>
                         <div className="col-span-2 text-left">
                           <div className="font-medium text-slate-900">{survey.name}</div>
                           <div className="text-xs text-slate-400">{workspace.name}</div>
@@ -86,7 +141,8 @@ export const EditAlerts = ({
                         <div className="col-span-1 text-center">
                           <NotificationSwitch
                             surveyOrWorkspaceOrOrganizationId={survey.id}
-                            notificationSettings={user.notificationSettings!}
+                            notificationSettings={notificationSettings}
+                            persistNotificationSettings={persistNotificationSettings}
                             notificationType={"alert"}
                             autoDisableNotificationType={autoDisableNotificationType}
                             autoDisableNotificationElementId={autoDisableNotificationElementId}

@@ -15,10 +15,13 @@ function generatedQuestion(index: number) {
     placeholder: null,
     longAnswer: true,
     choices: null,
+    rows: null,
+    columns: null,
     lowerLabel: null,
     upperLabel: null,
     scale: null,
     range: null,
+    format: null,
   };
 }
 
