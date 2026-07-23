@@ -8,6 +8,7 @@ import { TUserLocale } from "@formbricks/types/user";
 import { TargetingCard } from "@/modules/ee/contacts/segments/components/targeting-card";
 import { QuotasCard } from "@/modules/ee/quotas/components/quotas-card";
 import { TTeamPermission } from "@/modules/ee/teams/workspace-teams/types/team";
+import { AudienceCard } from "@/modules/survey/editor/components/audience-card";
 import { HowToSendCard } from "@/modules/survey/editor/components/how-to-send-card";
 import { RecontactOptionsCard } from "@/modules/survey/editor/components/recontact-options-card";
 import { ResponseOptionsCard } from "@/modules/survey/editor/components/response-options-card";
@@ -101,6 +102,13 @@ export const SettingsView = ({
         quotas={quotas}
         hasResponses={responseCount > 0}
         enterpriseLicenseRequestFormUrl={enterpriseLicenseRequestFormUrl}
+      />
+
+      <AudienceCard
+        localSurvey={localSurvey}
+        setLocalSurvey={setLocalSurvey}
+        contactAttributeKeys={contactAttributeKeys}
+        segments={segments}
       />
 
       <ResponseOptionsCard

@@ -1,5 +1,10 @@
 import { prisma } from "@formbricks/database";
-import { enqueueEmailCampaignRecipientJob } from "@formbricks/jobs";
+import { EmailCampaignRecipientStatus } from "@formbricks/database/prisma";
+import {
+  enqueueEmailCampaignRecipientJob,
+  removeBackgroundJob,
+  scheduleEmailCampaignDispatchJobAt,
+} from "@formbricks/jobs";
 import { logger } from "@formbricks/logger";
 import {
   TEmailCampaignMode,
@@ -16,6 +21,8 @@ import { deliverEmailCampaignRecipientOrFail } from "@/modules/ee/email-campaign
 import { resolveCampaignHtmlTemplate } from "@/modules/ee/email-campaigns/lib/templates";
 import { IS_SMTP_CONFIGURED } from "@/modules/email";
 
+export type TEmailCampaignStatusValue = "scheduled" | "processing" | "completed" | "failed" | "canceled";
+
 export interface TCreateEmailCampaignInput {
   workspaceId: string;
   surveyId: string;
@@ -28,6 +35,8 @@ export interface TCreateEmailCampaignInput {
   createdBy?: string;
   /** When true, deliver the single recipient synchronously instead of enqueueing. */
   deliverSynchronously?: boolean;
+  /** When provided and in the future, the campaign is dispatched at this time instead of immediately. */
+  scheduledAt?: Date;
 }
 
 export interface TEmailCampaignListItem {
@@ -35,11 +44,13 @@ export interface TEmailCampaignListItem {
   name: string | null;
   subject: string;
   mode: TEmailCampaignMode;
-  status: "processing" | "completed" | "failed";
+  status: TEmailCampaignStatusValue;
   source: TEmailCampaignSource;
   totalRecipients: number;
   sentCount: number;
   failedCount: number;
+  skippedCount: number;
+  scheduledAt: Date | null;
   createdAt: Date;
   survey: { id: string; name: string };
 }
@@ -60,11 +71,13 @@ const toListItem = (
     name: string | null;
     subject: string;
     mode: TEmailCampaignMode;
-    status: "processing" | "completed" | "failed";
+    status: TEmailCampaignStatusValue;
     source: TEmailCampaignSource;
     totalRecipients: number;
     sentCount: number;
     failedCount: number;
+    skippedCount: number;
+    scheduledAt: Date | null;
     createdAt: Date;
   },
   survey: { id: string; name: string }
@@ -78,9 +91,31 @@ const toListItem = (
   totalRecipients: campaign.totalRecipients,
   sentCount: campaign.sentCount,
   failedCount: campaign.failedCount,
+  skippedCount: campaign.skippedCount,
+  scheduledAt: campaign.scheduledAt,
   createdAt: campaign.createdAt,
   survey: { id: survey.id, name: survey.name },
 });
+
+const MIN_SCHEDULE_LEAD_TIME_MS = 60 * 1000;
+
+const validateFutureScheduledAt = (scheduledAt: Date): Result<true, ApiErrorResponseV2> => {
+  if (Number.isNaN(scheduledAt.getTime())) {
+    return err({
+      type: "bad_request",
+      details: [{ field: "scheduledAt", issue: "invalid date" }],
+    });
+  }
+
+  if (scheduledAt.getTime() - Date.now() <= MIN_SCHEDULE_LEAD_TIME_MS) {
+    return err({
+      type: "bad_request",
+      details: [{ field: "scheduledAt", issue: "must be at least 1 minute in the future" }],
+    });
+  }
+
+  return ok(true);
+};
 
 export const createEmailCampaign = async (
   input: TCreateEmailCampaignInput
@@ -115,6 +150,20 @@ export const createEmailCampaign = async (
     });
   }
 
+  if (input.scheduledAt) {
+    if (input.deliverSynchronously) {
+      return err({
+        type: "bad_request",
+        details: [{ field: "scheduledAt", issue: "cannot schedule a synchronous transactional send" }],
+      });
+    }
+
+    const validation = validateFutureScheduledAt(input.scheduledAt);
+    if (!validation.ok) {
+      return validation;
+    }
+  }
+
   const allowedHiddenFieldIds = new Set(
     survey.hiddenFields.enabled ? (survey.hiddenFields.fieldIds ?? []) : []
   );
@@ -138,6 +187,7 @@ export const createEmailCampaign = async (
         totalRecipients: recipients.length,
         htmlTemplate: html,
         templateId,
+        ...(input.scheduledAt ? { status: "scheduled" as const, scheduledAt: input.scheduledAt } : {}),
       },
     });
 
@@ -186,11 +236,33 @@ export const createEmailCampaign = async (
           totalRecipients: true,
           sentCount: true,
           failedCount: true,
+          skippedCount: true,
+          scheduledAt: true,
           createdAt: true,
         },
       });
 
       return ok(toListItem(refreshed, { id: survey.id, name: survey.name }));
+    }
+
+    if (input.scheduledAt) {
+      try {
+        const dispatchJob = await scheduleEmailCampaignDispatchJobAt(
+          { runAt: input.scheduledAt },
+          { campaignId: campaign.id }
+        );
+        await prisma.emailCampaign.update({
+          where: { id: campaign.id },
+          data: { dispatchJobId: dispatchJob.id ?? null },
+        });
+      } catch (error) {
+        logger.error(
+          { err: error, campaignId: campaign.id },
+          "Failed to schedule email campaign dispatch job"
+        );
+      }
+
+      return ok(toListItem(campaign, { id: survey.id, name: survey.name }));
     }
 
     await Promise.all(
@@ -280,11 +352,104 @@ export const sendTransactionalEmailToContact = async (input: {
   });
 };
 
-export const getEmailCampaigns = async (workspaceId: string): Promise<TEmailCampaignListItem[]> => {
-  const campaigns = await prisma.emailCampaign.findMany({
-    where: { workspaceId },
-    orderBy: { createdAt: "desc" },
-    take: 50,
+export interface TEmailCampaignFailureItem {
+  id: string;
+  email: string;
+  contactId: string | null;
+  status: "skipped" | "failed";
+  reason: string | null;
+  updatedAt: Date;
+}
+
+export type TEmailCampaignListFilters = {
+  workspaceId: string;
+  source?: TEmailCampaignSource;
+  from?: Date;
+  to?: Date;
+  page?: number;
+  limit?: number;
+};
+
+export type TPaginatedEmailCampaigns = {
+  data: TEmailCampaignListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+const DEFAULT_CAMPAIGN_LIST_LIMIT = 25;
+const MAX_CAMPAIGN_LIST_LIMIT = 100;
+
+const normalizeCampaignPagination = (page?: number, limit?: number) => {
+  const pageSize = Math.min(Math.max(limit ?? DEFAULT_CAMPAIGN_LIST_LIMIT, 1), MAX_CAMPAIGN_LIST_LIMIT);
+  const currentPage = Math.max(page ?? 1, 1);
+  return {
+    page: currentPage,
+    pageSize,
+    skip: (currentPage - 1) * pageSize,
+  };
+};
+
+export const getEmailCampaigns = async (
+  filters: TEmailCampaignListFilters
+): Promise<TPaginatedEmailCampaigns> => {
+  const { page, pageSize, skip } = normalizeCampaignPagination(filters.page, filters.limit);
+  const where = {
+    workspaceId: filters.workspaceId,
+    ...(filters.source ? { source: filters.source } : {}),
+    ...(filters.from || filters.to
+      ? {
+          createdAt: {
+            ...(filters.from ? { gte: filters.from } : {}),
+            ...(filters.to ? { lte: filters.to } : {}),
+          },
+        }
+      : {}),
+  };
+
+  const [total, campaigns] = await Promise.all([
+    prisma.emailCampaign.count({ where }),
+    prisma.emailCampaign.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        name: true,
+        subject: true,
+        mode: true,
+        status: true,
+        source: true,
+        totalRecipients: true,
+        sentCount: true,
+        failedCount: true,
+        skippedCount: true,
+        scheduledAt: true,
+        createdAt: true,
+        survey: { select: { id: true, name: true } },
+      },
+    }),
+  ]);
+
+  return {
+    data: campaigns.map((campaign) =>
+      toListItem(campaign, { id: campaign.survey.id, name: campaign.survey.name })
+    ),
+    total,
+    page,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
+};
+
+export const getEmailCampaignById = async (
+  campaignId: string,
+  workspaceId: string
+): Promise<TEmailCampaignListItem | null> => {
+  const campaign = await prisma.emailCampaign.findFirst({
+    where: { id: campaignId, workspaceId },
     select: {
       id: true,
       name: true,
@@ -295,10 +460,182 @@ export const getEmailCampaigns = async (workspaceId: string): Promise<TEmailCamp
       totalRecipients: true,
       sentCount: true,
       failedCount: true,
+      skippedCount: true,
+      scheduledAt: true,
       createdAt: true,
       survey: { select: { id: true, name: true } },
     },
   });
 
-  return campaigns;
+  if (!campaign) {
+    return null;
+  }
+
+  return toListItem(campaign, { id: campaign.survey.id, name: campaign.survey.name });
+};
+
+const CAMPAIGN_LIST_ITEM_SELECT = {
+  id: true,
+  name: true,
+  subject: true,
+  mode: true,
+  status: true,
+  source: true,
+  totalRecipients: true,
+  sentCount: true,
+  failedCount: true,
+  skippedCount: true,
+  scheduledAt: true,
+  createdAt: true,
+  survey: { select: { id: true, name: true } },
+} as const;
+
+/**
+ * Cancels a campaign that is still `scheduled` (has not started dispatching). Removes the pending
+ * BullMQ dispatch job so it never fires. No-op recipients were never created for scheduled campaigns.
+ */
+export const cancelEmailCampaign = async (
+  campaignId: string,
+  workspaceId: string
+): Promise<Result<TEmailCampaignListItem, ApiErrorResponseV2>> => {
+  const campaign = await prisma.emailCampaign.findFirst({
+    where: { id: campaignId, workspaceId },
+    select: { id: true, status: true, dispatchJobId: true },
+  });
+
+  if (!campaign) {
+    return err({ type: "not_found", details: [{ field: "campaignId", issue: "not_found" }] });
+  }
+
+  if (campaign.status !== "scheduled") {
+    return err({
+      type: "bad_request",
+      details: [{ field: "status", issue: "only scheduled campaigns can be canceled" }],
+    });
+  }
+
+  if (campaign.dispatchJobId) {
+    await removeBackgroundJob(campaign.dispatchJobId);
+  }
+
+  const updated = await prisma.emailCampaign.update({
+    where: { id: campaignId },
+    data: { status: "canceled", dispatchJobId: null },
+    select: CAMPAIGN_LIST_ITEM_SELECT,
+  });
+
+  return ok(toListItem(updated, { id: updated.survey.id, name: updated.survey.name }));
+};
+
+/**
+ * Reschedules a campaign that is still `scheduled` to a new future send time: removes the existing
+ * dispatch job and schedules a new one, keeping the campaign in `scheduled` status.
+ */
+export const rescheduleEmailCampaign = async (
+  campaignId: string,
+  workspaceId: string,
+  scheduledAt: Date
+): Promise<Result<TEmailCampaignListItem, ApiErrorResponseV2>> => {
+  const validation = validateFutureScheduledAt(scheduledAt);
+  if (!validation.ok) {
+    return validation;
+  }
+
+  const campaign = await prisma.emailCampaign.findFirst({
+    where: { id: campaignId, workspaceId },
+    select: { id: true, status: true, dispatchJobId: true },
+  });
+
+  if (!campaign) {
+    return err({ type: "not_found", details: [{ field: "campaignId", issue: "not_found" }] });
+  }
+
+  if (campaign.status !== "scheduled") {
+    return err({
+      type: "bad_request",
+      details: [{ field: "status", issue: "only scheduled campaigns can be rescheduled" }],
+    });
+  }
+
+  if (campaign.dispatchJobId) {
+    await removeBackgroundJob(campaign.dispatchJobId);
+  }
+
+  const dispatchJob = await scheduleEmailCampaignDispatchJobAt({ runAt: scheduledAt }, { campaignId });
+
+  const updated = await prisma.emailCampaign.update({
+    where: { id: campaignId },
+    data: { scheduledAt, dispatchJobId: dispatchJob.id ?? null },
+    select: CAMPAIGN_LIST_ITEM_SELECT,
+  });
+
+  return ok(toListItem(updated, { id: updated.survey.id, name: updated.survey.name }));
+};
+
+export type TEmailCampaignFailureFilters = {
+  campaignId: string;
+  workspaceId: string;
+  page?: number;
+  limit?: number;
+};
+
+export type TPaginatedEmailCampaignFailures = {
+  data: TEmailCampaignFailureItem[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+/**
+ * Lists only the recipients of a campaign that were NOT successfully sent: those skipped by
+ * contactability rules and those that hit a critical error during delivery. Successful (`sent`)
+ * recipients are intentionally excluded — this is a failure log, not a full recipient list.
+ */
+export const getEmailCampaignFailures = async (
+  filters: TEmailCampaignFailureFilters
+): Promise<TPaginatedEmailCampaignFailures> => {
+  const { page, pageSize, skip } = normalizeCampaignPagination(filters.page, filters.limit);
+  const failureStatuses: EmailCampaignRecipientStatus[] = [
+    EmailCampaignRecipientStatus.skipped,
+    EmailCampaignRecipientStatus.failed,
+  ];
+  const where = {
+    campaignId: filters.campaignId,
+    campaign: { workspaceId: filters.workspaceId },
+    status: { in: failureStatuses },
+  };
+
+  const [total, recipients] = await Promise.all([
+    prisma.emailCampaignRecipient.count({ where }),
+    prisma.emailCampaignRecipient.findMany({
+      where,
+      orderBy: { updatedAt: "desc" },
+      skip,
+      take: pageSize,
+      select: {
+        id: true,
+        email: true,
+        contactId: true,
+        status: true,
+        error: true,
+        updatedAt: true,
+      },
+    }),
+  ]);
+
+  return {
+    data: recipients.map((recipient) => ({
+      id: recipient.id,
+      email: recipient.email,
+      contactId: recipient.contactId,
+      status: recipient.status as "skipped" | "failed",
+      reason: recipient.error,
+      updatedAt: recipient.updatedAt,
+    })),
+    total,
+    page,
+    pageSize,
+    pageCount: Math.max(1, Math.ceil(total / pageSize)),
+  };
 };

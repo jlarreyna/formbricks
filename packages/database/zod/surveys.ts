@@ -91,6 +91,11 @@ const ZSurveyBase = z.object({
     .describe("Display options for the survey"),
   recontactDays: z.number().nullable().describe("Days before recontacting"),
   displayLimit: z.number().nullable().describe("Display limit for the survey"),
+  priority: z.number().int().describe("Survey priority; higher value wins when multiple surveys compete"),
+  audienceFilters: z
+    .unknown()
+    .nullable()
+    .describe("Included/excluded segment filters for contactability audience rules"),
   autoClose: z.number().nullable().describe("Auto close time in seconds"),
   autoComplete: z.number().nullable().describe("Auto complete time in seconds"),
   delay: z.number().describe("Delay before showing survey"),

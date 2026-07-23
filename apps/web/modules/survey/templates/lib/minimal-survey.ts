@@ -18,6 +18,8 @@ export const getMinimalSurvey = (t: TFunction): TSurvey => ({
   triggers: [],
   recontactDays: null,
   displayLimit: null,
+  priority: 0,
+  audienceFilters: null,
   welcomeCard: getDefaultWelcomeCard(t),
   questions: [],
   blocks: [],

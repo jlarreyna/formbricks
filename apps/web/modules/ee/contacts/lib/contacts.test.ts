@@ -26,6 +26,7 @@ vi.mock("@formbricks/database", () => ({
       delete: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     contactAttribute: {
       findMany: vi.fn(),
@@ -106,14 +107,14 @@ describe("Contacts Lib", () => {
   });
 
   describe("buildContactWhereClause", () => {
-    test("returns where clause with only workspaceId when no search provided", () => {
+    test("returns where clause with only workspaceId when no filters provided", () => {
       const result = buildContactWhereClause(mockWorkspaceId);
       expect(result).toEqual({ workspaceId: mockWorkspaceId });
     });
 
     test("returns where clause with search filters when search is provided", () => {
       const searchTerm = "john";
-      const result = buildContactWhereClause(mockWorkspaceId, searchTerm);
+      const result = buildContactWhereClause(mockWorkspaceId, { search: searchTerm });
 
       expect(result).toEqual({
         workspaceId: mockWorkspaceId,
@@ -139,8 +140,19 @@ describe("Contacts Lib", () => {
     });
 
     test("handles empty search string same as no search", () => {
-      const result = buildContactWhereClause(mockWorkspaceId, "");
+      const result = buildContactWhereClause(mockWorkspaceId, { search: "" });
       expect(result).toEqual({ workspaceId: mockWorkspaceId });
+    });
+
+    test("returns where clause with createdAt range when from/to are provided", () => {
+      const from = new Date("2026-01-01T00:00:00.000Z");
+      const to = new Date("2026-01-31T23:59:59.999Z");
+      const result = buildContactWhereClause(mockWorkspaceId, { from, to });
+
+      expect(result).toEqual({
+        workspaceId: mockWorkspaceId,
+        createdAt: { gte: from, lte: to },
+      });
     });
   });
 
@@ -271,29 +283,42 @@ describe("Contacts Lib", () => {
   });
 
   describe("getContacts", () => {
-    test("returns contacts without search or offset", async () => {
+    test("returns paginated contacts without search", async () => {
       vi.mocked(prisma.contact.findMany).mockResolvedValue([mockPrismaContact] as any);
+      vi.mocked(prisma.contact.count).mockResolvedValue(1);
       vi.mocked(transformPrismaContact).mockReturnValue(mockTransformedContact as any);
 
       const result = await getContacts(mockWorkspaceId);
 
-      expect(result).toEqual([mockTransformedContact]);
+      expect(result).toEqual({
+        data: [mockTransformedContact],
+        total: 1,
+        page: 1,
+        pageSize: 30,
+        pageCount: 1,
+      });
       expect(prisma.contact.findMany).toHaveBeenCalledWith({
         where: { workspaceId: mockWorkspaceId },
         select: expect.any(Object),
         take: 30,
-        skip: undefined,
+        skip: 0,
         orderBy: { createdAt: "desc" },
+      });
+      expect(prisma.contact.count).toHaveBeenCalledWith({
+        where: { workspaceId: mockWorkspaceId },
       });
     });
 
-    test("returns contacts with offset for pagination", async () => {
+    test("returns contacts with page for pagination", async () => {
       vi.mocked(prisma.contact.findMany).mockResolvedValue([mockPrismaContact] as any);
+      vi.mocked(prisma.contact.count).mockResolvedValue(45);
       vi.mocked(transformPrismaContact).mockReturnValue(mockTransformedContact as any);
 
-      const result = await getContacts(mockWorkspaceId, 30);
+      const result = await getContacts(mockWorkspaceId, 2);
 
-      expect(result).toEqual([mockTransformedContact]);
+      expect(result.page).toBe(2);
+      expect(result.pageCount).toBe(2);
+      expect(result.total).toBe(45);
       expect(prisma.contact.findMany).toHaveBeenCalledWith({
         where: { workspaceId: mockWorkspaceId },
         select: expect.any(Object),
@@ -306,16 +331,38 @@ describe("Contacts Lib", () => {
     test("returns contacts with search value", async () => {
       const searchValue = "john";
       vi.mocked(prisma.contact.findMany).mockResolvedValue([mockPrismaContact] as any);
+      vi.mocked(prisma.contact.count).mockResolvedValue(1);
       vi.mocked(transformPrismaContact).mockReturnValue(mockTransformedContact as any);
 
-      const result = await getContacts(mockWorkspaceId, undefined, searchValue);
+      const result = await getContacts(mockWorkspaceId, 1, searchValue);
 
-      expect(result).toEqual([mockTransformedContact]);
+      expect(result.data).toEqual([mockTransformedContact]);
       expect(prisma.contact.findMany).toHaveBeenCalledWith({
-        where: buildContactWhereClause(mockWorkspaceId, searchValue),
+        where: buildContactWhereClause(mockWorkspaceId, { search: searchValue }),
         select: expect.any(Object),
         take: 30,
-        skip: undefined,
+        skip: 0,
+        orderBy: { createdAt: "desc" },
+      });
+    });
+
+    test("returns contacts filtered by createdAt range", async () => {
+      const from = "2026-01-01T00:00:00.000Z";
+      const to = "2026-01-31T23:59:59.999Z";
+      vi.mocked(prisma.contact.findMany).mockResolvedValue([mockPrismaContact] as any);
+      vi.mocked(prisma.contact.count).mockResolvedValue(1);
+      vi.mocked(transformPrismaContact).mockReturnValue(mockTransformedContact as any);
+
+      await getContacts(mockWorkspaceId, 1, undefined, from, to);
+
+      expect(prisma.contact.findMany).toHaveBeenCalledWith({
+        where: buildContactWhereClause(mockWorkspaceId, {
+          from: new Date(from),
+          to: new Date(to),
+        }),
+        select: expect.any(Object),
+        take: 30,
+        skip: 0,
         orderBy: { createdAt: "desc" },
       });
     });
@@ -325,6 +372,7 @@ describe("Contacts Lib", () => {
         code: "P2002",
         clientVersion: "5.0.0",
       });
+      vi.mocked(prisma.contact.count).mockResolvedValue(0);
       vi.mocked(prisma.contact.findMany).mockRejectedValue(prismaError);
 
       await expect(getContacts(mockWorkspaceId)).rejects.toThrow(DatabaseError);
@@ -332,6 +380,7 @@ describe("Contacts Lib", () => {
 
     test("re-throws non-Prisma errors", async () => {
       const error = new Error("Unknown error");
+      vi.mocked(prisma.contact.count).mockResolvedValue(0);
       vi.mocked(prisma.contact.findMany).mockRejectedValue(error);
 
       await expect(getContacts(mockWorkspaceId)).rejects.toThrow(error);
@@ -340,13 +389,14 @@ describe("Contacts Lib", () => {
     test("returns multiple contacts", async () => {
       const contact2 = { ...mockPrismaContact, id: "contact-2" };
       vi.mocked(prisma.contact.findMany).mockResolvedValue([mockPrismaContact, contact2] as any);
+      vi.mocked(prisma.contact.count).mockResolvedValue(2);
       vi.mocked(transformPrismaContact)
         .mockReturnValueOnce(mockTransformedContact as any)
         .mockReturnValueOnce({ ...mockTransformedContact, id: "contact-2" } as any);
 
       const result = await getContacts(mockWorkspaceId);
 
-      expect(result).toHaveLength(2);
+      expect(result.data).toHaveLength(2);
     });
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckIcon, PencilIcon, PlusIcon, RefreshCwIcon, TrashIcon, XIcon } from "lucide-react";
+import { CheckIcon, DownloadIcon, PencilIcon, PlusIcon, RefreshCwIcon, TrashIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import toast from "react-hot-toast";
@@ -28,6 +28,7 @@ interface DashboardControlBarProps {
   onEditToggle: () => void;
   onSave: () => void;
   onCancel: () => void;
+  onExport: () => void;
 }
 
 export const DashboardControlBar = ({
@@ -45,6 +46,7 @@ export const DashboardControlBar = ({
   onEditToggle,
   onSave,
   onCancel,
+  onExport,
 }: Readonly<DashboardControlBarProps>) => {
   const router = useRouter();
   const { t } = useTranslation();
@@ -91,6 +93,12 @@ export const DashboardControlBar = ({
   ];
 
   const viewModeActions = [
+    {
+      icon: DownloadIcon,
+      tooltip: t("workspace.analysis.dashboards.export.export_action"),
+      onClick: onExport,
+      isVisible: true,
+    },
     {
       icon: RefreshCwIcon,
       tooltip: t("common.refresh"),

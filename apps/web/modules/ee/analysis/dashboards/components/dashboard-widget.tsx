@@ -1,7 +1,14 @@
 "use client";
 
-import { CopyIcon, Maximize2Icon, MoreVerticalIcon, SquarePenIcon, TrashIcon } from "lucide-react";
-import { ReactNode, useState } from "react";
+import {
+  CopyIcon,
+  DownloadIcon,
+  Maximize2Icon,
+  MoreVerticalIcon,
+  SquarePenIcon,
+  TrashIcon,
+} from "lucide-react";
+import { ReactNode, Ref, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "@/lib/cn";
 import {
@@ -14,25 +21,29 @@ import {
 interface DashboardWidgetProps {
   title: string;
   children: ReactNode;
+  contentRef?: Ref<HTMLDivElement>;
   isEditing?: boolean;
   onEdit?: () => void;
   onDuplicate?: () => void;
   onResize?: () => void;
   onRemove?: () => void;
+  onExport?: () => void;
 }
 
 export function DashboardWidget({
   title,
   children,
+  contentRef,
   isEditing,
   onEdit,
   onDuplicate,
   onResize,
   onRemove,
+  onExport,
 }: Readonly<DashboardWidgetProps>) {
   const { t } = useTranslation();
   const [menuOpen, setMenuOpen] = useState(false);
-  const hasMenuActions = Boolean(onEdit || onDuplicate || onResize || onRemove);
+  const hasMenuActions = Boolean(onEdit || onDuplicate || onResize || onRemove || onExport);
 
   return (
     <div
@@ -59,6 +70,16 @@ export function DashboardWidget({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-40">
+              {onExport && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    setMenuOpen(false);
+                    onExport();
+                  }}>
+                  <DownloadIcon className="mr-2 size-4" />
+                  {t("workspace.analysis.dashboards.export.export_action")}
+                </DropdownMenuItem>
+              )}
               {onEdit && (
                 <DropdownMenuItem
                   onSelect={() => {
@@ -104,7 +125,9 @@ export function DashboardWidget({
           </DropdownMenu>
         )}
       </div>
-      <div className="relative flex-1 overflow-hidden p-4">{children}</div>
+      <div ref={contentRef} className="relative flex-1 overflow-hidden p-4">
+        {children}
+      </div>
     </div>
   );
 }

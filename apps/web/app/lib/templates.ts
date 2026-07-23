@@ -4981,6 +4981,8 @@ export const previewSurvey = (workspaceName: string, t: TFunction): TSurvey => {
     displayOption: "displayOnce",
     recontactDays: null,
     displayLimit: null,
+    priority: 0,
+    audienceFilters: null,
     autoClose: null,
     recaptcha: null,
     delay: 0,

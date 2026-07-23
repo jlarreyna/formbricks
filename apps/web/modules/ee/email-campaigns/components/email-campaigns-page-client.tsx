@@ -1,5 +1,6 @@
 "use client";
 
+import { InboxIcon, MegaphoneIcon, SendHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
@@ -9,14 +10,14 @@ import {
 import { EmailCampaignList } from "@/modules/ee/email-campaigns/components/email-campaign-list";
 import { EmailCampaignTemplatesManager } from "@/modules/ee/email-campaigns/components/email-campaign-templates-manager";
 import { TransactionalEmailForm } from "@/modules/ee/email-campaigns/components/transactional-email-form";
-import type { TEmailCampaignListItem } from "@/modules/ee/email-campaigns/lib/campaign";
+import type { TPaginatedEmailCampaigns } from "@/modules/ee/email-campaigns/lib/campaign";
 import type { TEmailCampaignTemplateListItem } from "@/modules/ee/email-campaigns/lib/templates";
 import { Tabs, TabsList, TabsTrigger } from "@/modules/ui/components/tabs";
 
 interface EmailCampaignsPageClientProps {
   workspaceId: string;
   surveys: TEmailCampaignSurveyOption[];
-  initialCampaigns: TEmailCampaignListItem[];
+  initialCampaigns: TPaginatedEmailCampaigns;
   initialTemplates: TEmailCampaignTemplateListItem[];
   isReadOnly: boolean;
   isSmtpConfigured: boolean;
@@ -31,9 +32,11 @@ export const EmailCampaignsPageClient = ({
   isSmtpConfigured,
 }: EmailCampaignsPageClientProps) => {
   const { t } = useTranslation();
-  const [campaigns, setCampaigns] = useState(initialCampaigns);
   const [templates, setTemplates] = useState(initialTemplates);
   const [activeTab, setActiveTab] = useState("campaign");
+  const [listReloadToken, setListReloadToken] = useState(0);
+
+  const refreshCampaignList = () => setListReloadToken((current) => current + 1);
 
   return (
     <div className="flex flex-col gap-6">
@@ -48,13 +51,13 @@ export const EmailCampaignsPageClient = ({
 
       {!isReadOnly &&
         (surveys.length > 0 ? (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-4">
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
-                <TabsTrigger value="campaign" showIcon={false}>
+                <TabsTrigger value="campaign" icon={<MegaphoneIcon />}>
                   {t("workspace.email_campaigns.tab_campaign")}
                 </TabsTrigger>
-                <TabsTrigger value="transactional" showIcon={false}>
+                <TabsTrigger value="transactional" icon={<SendHorizontalIcon />}>
                   {t("workspace.email_campaigns.tab_transactional")}
                 </TabsTrigger>
               </TabsList>
@@ -66,7 +69,7 @@ export const EmailCampaignsPageClient = ({
                 surveys={surveys}
                 templates={templates}
                 isSmtpConfigured={isSmtpConfigured}
-                onCreated={(campaign) => setCampaigns((current) => [campaign, ...current])}
+                onCreated={refreshCampaignList}
               />
             ) : (
               <TransactionalEmailForm
@@ -74,17 +77,27 @@ export const EmailCampaignsPageClient = ({
                 surveys={surveys}
                 templates={templates}
                 isSmtpConfigured={isSmtpConfigured}
-                onSent={(campaign) => setCampaigns((current) => [campaign, ...current])}
+                onSent={refreshCampaignList}
               />
             )}
           </div>
         ) : (
-          <p className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500">
-            {t("workspace.email_campaigns.no_surveys")}
-          </p>
+          <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-slate-200 bg-slate-50/60 p-10 text-center">
+            <div className="flex size-11 items-center justify-center rounded-lg bg-slate-200 text-slate-500">
+              <InboxIcon className="size-5" />
+            </div>
+            <div>
+              <p className="font-medium text-slate-800">{t("workspace.email_campaigns.no_surveys_title")}</p>
+              <p className="mt-1 text-sm text-slate-500">{t("workspace.email_campaigns.no_surveys")}</p>
+            </div>
+          </div>
         ))}
 
-      <EmailCampaignList workspaceId={workspaceId} campaigns={campaigns} onCampaignsChange={setCampaigns} />
+      <EmailCampaignList
+        workspaceId={workspaceId}
+        initialCampaigns={initialCampaigns}
+        reloadToken={listReloadToken}
+      />
     </div>
   );
 };

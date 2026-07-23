@@ -2,6 +2,7 @@
 import { type TActionClassNoCodeConfig } from "@formbricks/types/action-classes";
 import type { TChartConfig, TChartQuery, TWidgetLayout } from "@formbricks/types/analysis";
 import type { TOrganizationAccess } from "@formbricks/types/api-key";
+import type { TContactabilityRules, TSurveyAudienceFilters } from "@formbricks/types/contactability";
 import { type TIntegrationConfig } from "@formbricks/types/integration";
 import {
   type TOrganizationBilling,
@@ -82,5 +83,7 @@ declare global {
     export type EmailCampaignRecipientHiddenFields = Record<string, string>;
     export type EmailCampaignRecipientVariables = Record<string, string>;
     export type ResponseAnalysisData = TResponseAnalysisPayload;
+    export type ContactabilityRules = TContactabilityRules;
+    export type SurveyAudienceFilters = TSurveyAudienceFilters;
   }
 }

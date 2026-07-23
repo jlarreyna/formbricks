@@ -10,6 +10,7 @@ export const ZContact = z.object({
   createdAt: z.date(),
   updatedAt: z.date(),
   workspaceId: z.cuid2(),
+  fatigueScore: z.number(),
 });
 
 const ZContactTableAttributeData = z.object({
@@ -41,6 +42,7 @@ export type TContact = z.infer<typeof ZContact>;
 export type TTransformPersonInput = {
   id: string;
   workspaceId: string;
+  fatigueScore: number;
   attributes: {
     value: string;
     valueNumber: number | null;

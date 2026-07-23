@@ -30,7 +30,7 @@ import {
 } from "@/app/(app)/workspaces/[workspaceId]/actions";
 import { NavigationLink } from "@/app/(app)/workspaces/[workspaceId]/components/NavigationLink";
 import { SettingsSidebarContent } from "@/app/(app)/workspaces/[workspaceId]/components/SettingsSidebarContent";
-import FBLogo from "@/images/formbricks-wordmark.svg";
+import FBLogo from "@/images/AR_horiz_0.svg";
 import { cn } from "@/lib/cn";
 import { getBillingFallbackPath } from "@/lib/membership/navigation";
 import { getAccessFlags } from "@/lib/membership/utils";

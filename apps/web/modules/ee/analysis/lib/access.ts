@@ -30,7 +30,8 @@ type TFeedbackDirectoryAccessSource =
   | "charts.executeQueryAction"
   | "charts.generateAIChartAction"
   | "charts.getDimensionValuesAction"
-  | "dashboards.widget";
+  | "dashboards.widget"
+  | "dashboards.export";
 
 type TCheckFeedbackDirectoryAccessInput = {
   feedbackDirectoryId: string;

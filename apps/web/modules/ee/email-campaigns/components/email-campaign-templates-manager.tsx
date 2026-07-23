@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDownIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { ChevronDownIcon, FileTextIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -126,24 +126,34 @@ export const EmailCampaignTemplatesManager = ({
       <div className="flex items-center justify-between gap-3">
         <button
           type="button"
-          className="flex min-w-0 flex-1 items-start gap-2 text-left"
+          className="flex min-w-0 flex-1 items-center gap-3 text-left"
           onClick={() => setIsExpanded((current) => !current)}
           aria-expanded={isExpanded}>
-          <ChevronDownIcon
-            className={cn(
-              "mt-1 h-4 w-4 shrink-0 text-slate-500 transition-transform",
-              isExpanded ? "rotate-0" : "-rotate-90"
-            )}
-          />
-          <div className="min-w-0">
-            <h2 className="text-lg font-semibold text-slate-900">
-              {t("workspace.email_campaigns.templates_title")}
-            </h2>
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+            <FileTextIcon className="size-4.5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold text-slate-900">
+                {t("workspace.email_campaigns.templates_title")}
+              </h2>
+              {templates.length > 0 && (
+                <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-xs font-medium text-slate-500">
+                  {templates.length}
+                </span>
+              )}
+            </div>
             <p className="text-sm text-slate-500">{t("workspace.email_campaigns.templates_description")}</p>
           </div>
+          <ChevronDownIcon
+            className={cn(
+              "size-4 shrink-0 text-slate-400 transition-transform",
+              isExpanded ? "rotate-180" : "rotate-0"
+            )}
+          />
         </button>
         {!isReadOnly && !isEditing && (
-          <Button size="sm" onClick={startCreate}>
+          <Button size="sm" variant="secondary" onClick={startCreate}>
             <PlusIcon />
             {t("workspace.email_campaigns.templates_new")}
           </Button>
@@ -191,21 +201,35 @@ export const EmailCampaignTemplatesManager = ({
           )}
 
           {templates.length === 0 ? (
-            <p className="text-sm text-slate-500">{t("workspace.email_campaigns.templates_empty")}</p>
+            <p className="rounded-lg border border-dashed border-slate-200 p-4 text-center text-sm text-slate-500">
+              {t("workspace.email_campaigns.templates_empty")}
+            </p>
           ) : (
             <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
               {templates.map((template) => (
-                <li key={template.id} className="flex items-center justify-between gap-3 px-4 py-3">
-                  <div>
-                    <p className="font-medium text-slate-900">{template.name}</p>
-                    {template.subject && <p className="text-xs text-slate-500">{template.subject}</p>}
+                <li
+                  key={template.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-slate-50">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-slate-900">{template.name}</p>
+                    {template.subject && (
+                      <p className="truncate text-xs text-slate-500">{template.subject}</p>
+                    )}
                   </div>
                   {!isReadOnly && (
-                    <div className="flex gap-1">
-                      <Button size="sm" variant="secondary" onClick={() => startEdit(template)}>
+                    <div className="flex shrink-0 gap-1">
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        aria-label={t("common.edit")}
+                        onClick={() => startEdit(template)}>
                         <PencilIcon className="h-4 w-4" />
                       </Button>
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(template.id)}>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        aria-label={t("common.delete")}
+                        onClick={() => handleDelete(template.id)}>
                         <Trash2Icon className="h-4 w-4" />
                       </Button>
                     </div>

@@ -1,4 +1,4 @@
-import { EyeIcon, MessageSquareTextIcon } from "lucide-react";
+import { EyeIcon, GaugeIcon, MessageSquareTextIcon, SlidersHorizontalIcon, TagIcon } from "lucide-react";
 import { ResourceNotFoundError } from "@formbricks/types/errors";
 import { getDisplaysByContactId } from "@/lib/display/service";
 import { getResponsesByContactId } from "@/lib/response/service";
@@ -9,7 +9,14 @@ import { getContactAttributesWithKeyInfo } from "@/modules/ee/contacts/lib/conta
 import { getContact } from "@/modules/ee/contacts/lib/contacts";
 import { formatAttributeValue } from "@/modules/ee/contacts/lib/format-attribute-value";
 import { getContactAttributeDataTypeIcon } from "@/modules/ee/contacts/utils";
+import { Badge } from "@/modules/ui/components/badge";
 import { IdBadge } from "@/modules/ui/components/id-badge";
+
+const getFatigueScoreBadgeType = (fatigueScore: number): "success" | "warning" | "error" => {
+  if (fatigueScore >= 70) return "error";
+  if (fatigueScore >= 40) return "warning";
+  return "success";
+};
 
 export const AttributesSection = async ({ contactId }: { contactId: string }) => {
   const t = await getTranslate();
@@ -83,6 +90,20 @@ export const AttributesSection = async ({ contactId }: { contactId: string }) =>
           </div>
         </dl>
 
+        <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+          <dt className="flex items-center gap-2 text-sm text-slate-500">
+            <GaugeIcon className="size-4 text-slate-400" />
+            <span>{t("workspace.contacts.fatigue_score")}</span>
+          </dt>
+          <dd>
+            <Badge
+              type={getFatigueScoreBadgeType(contact.fatigueScore)}
+              size="tiny"
+              text={`${Math.round(contact.fatigueScore)} / 100`}
+            />
+          </dd>
+        </div>
+
         <div className="mt-4 grid grid-cols-2 gap-3">
           <div className="flex flex-col items-center gap-1 rounded-lg bg-slate-50 py-3">
             <MessageSquareTextIcon className="size-4 text-slate-400" />
@@ -98,7 +119,8 @@ export const AttributesSection = async ({ contactId }: { contactId: string }) =>
       </div>
 
       <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
-        <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700">
+        <h2 className="flex items-center gap-2 border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700">
+          <TagIcon className="size-4 text-slate-400" />
           {t("workspace.contacts.system_attributes")}
         </h2>
         {renderAttributeList(systemAttributes)}
@@ -106,7 +128,8 @@ export const AttributesSection = async ({ contactId }: { contactId: string }) =>
 
       {customAttributes.length > 0 && (
         <div className="rounded-xl border border-slate-200 bg-white shadow-xs">
-          <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700">
+          <h2 className="flex items-center gap-2 border-b border-slate-100 px-5 py-3 text-sm font-semibold text-slate-700">
+            <SlidersHorizontalIcon className="size-4 text-slate-400" />
             {t("workspace.contacts.custom_attributes")}
           </h2>
           {renderAttributeList(customAttributes)}

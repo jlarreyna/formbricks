@@ -9,13 +9,16 @@ export type {
   UpsertedRecurringJobSchedule,
 } from "./contracts";
 export {
+  enqueueEmailCampaignDispatchJob,
   enqueueEmailCampaignRecipientJob,
   enqueueResponseAnalysisJob,
   enqueueResponsePipelineJob,
   enqueueSurveySchedulingJob,
   enqueueTestLogJob,
   getBackgroundJobProducer,
+  removeBackgroundJob,
   removeRecurringSurveySchedulingJobSchedule,
+  scheduleEmailCampaignDispatchJobAt,
   scheduleResponsePipelineJobAt,
   scheduleSurveySchedulingJobAt,
   scheduleTestLogJobAt,
@@ -23,6 +26,7 @@ export {
   upsertRecurringSurveySchedulingJobSchedule,
   upsertRecurringTestLogJobSchedule,
 } from "./queue";
+export { processEmailCampaignDispatchJob } from "./processors/email-campaign-dispatch";
 export { processEmailCampaignRecipientJob } from "./processors/email-campaign-recipient";
 export { processResponseAnalysisJob } from "./processors/response-analysis";
 export { processResponsePipelineJob } from "./processors/response-pipeline";
@@ -49,6 +53,7 @@ export type {
   TRunAtBackgroundJobSchedule,
 } from "./schedules";
 export {
+  ZEmailCampaignDispatchJobData,
   ZEmailCampaignRecipientJobData,
   ZResponseAnalysisJobData,
   ZResponsePipelineEvent,
@@ -57,6 +62,7 @@ export {
   ZTestLogJobData,
 } from "./types";
 export type {
+  TEmailCampaignDispatchJobData,
   TEmailCampaignRecipientJobData,
   TResponseAnalysisJobData,
   TResponsePipelineEvent,

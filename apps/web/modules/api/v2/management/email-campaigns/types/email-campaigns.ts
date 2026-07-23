@@ -19,6 +19,8 @@ export const ZEmailCampaignApiCreateInput = z
     templateId: z.cuid2().optional(),
     recipients: z.array(ZEmailCampaignRecipientInput).max(MAX_EMAIL_CAMPAIGN_RECIPIENTS).optional(),
     csv: z.string().max(2_000_000).optional(),
+    // ISO 8601 datetime. When set and in the future, the campaign is dispatched at this time instead of immediately.
+    scheduledAt: z.string().datetime().optional(),
   })
   .refine(
     (data) => (data.recipients && data.recipients.length > 0) || (data.csv && data.csv.trim().length > 0),
@@ -32,6 +34,11 @@ export type TEmailCampaignApiCreateInput = z.infer<typeof ZEmailCampaignApiCreat
 
 export const ZEmailCampaignsGetFilter = z.object({
   workspaceId: z.cuid2(),
+  source: z.enum(["ui", "api", "transactional"]).optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  page: z.coerce.number().int().min(1).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
 
 export type TEmailCampaignsGetFilter = z.infer<typeof ZEmailCampaignsGetFilter>;
@@ -43,6 +50,7 @@ export const ZEmailCampaignMultipartCreateInput = z.object({
   subject: z.string().min(1).max(200),
   name: z.string().max(200).optional(),
   templateId: z.cuid2().optional(),
+  scheduledAt: z.string().datetime().optional(),
 });
 
 export type TEmailCampaignMultipartCreateInput = z.infer<typeof ZEmailCampaignMultipartCreateInput>;

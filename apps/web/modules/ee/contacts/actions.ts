@@ -24,8 +24,11 @@ import {
 
 const ZGetContactsAction = z.object({
   workspaceId: ZId,
-  offset: z.int().nonnegative(),
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
   searchValue: z.string().optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
 });
 
 export const getContactsAction = authenticatedActionClient
@@ -49,7 +52,14 @@ export const getContactsAction = authenticatedActionClient
       ],
     });
 
-    return getContacts(workspaceId, parsedInput.offset, parsedInput.searchValue);
+    return getContacts(
+      workspaceId,
+      parsedInput.page,
+      parsedInput.searchValue,
+      parsedInput.from,
+      parsedInput.to,
+      parsedInput.limit
+    );
   });
 
 const ZContactDeleteAction = z.object({

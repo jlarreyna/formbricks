@@ -3,13 +3,13 @@ import { z } from "zod";
 export const ZEmailCampaignMode = z.enum(["embed", "link"]);
 export type TEmailCampaignMode = z.infer<typeof ZEmailCampaignMode>;
 
-export const ZEmailCampaignStatus = z.enum(["processing", "completed", "failed"]);
+export const ZEmailCampaignStatus = z.enum(["scheduled", "processing", "completed", "failed", "canceled"]);
 export type TEmailCampaignStatus = z.infer<typeof ZEmailCampaignStatus>;
 
 export const ZEmailCampaignSource = z.enum(["ui", "api", "transactional"]);
 export type TEmailCampaignSource = z.infer<typeof ZEmailCampaignSource>;
 
-export const ZEmailCampaignRecipientStatus = z.enum(["pending", "sent", "failed"]);
+export const ZEmailCampaignRecipientStatus = z.enum(["pending", "sent", "failed", "skipped"]);
 export type TEmailCampaignRecipientStatus = z.infer<typeof ZEmailCampaignRecipientStatus>;
 
 // Reserved query params used by the survey link/prefill pipeline — hidden field ids must avoid these.
@@ -56,6 +56,8 @@ export const ZEmailCampaignCreateInput = z.object({
   name: z.string().max(200).optional(),
   templateId: z.cuid2().optional(),
   recipients: z.array(ZEmailCampaignRecipientInput).min(1).max(MAX_EMAIL_CAMPAIGN_RECIPIENTS),
+  /** ISO 8601 datetime. When set and in the future, the campaign is dispatched at this time instead of immediately. */
+  scheduledAt: z.string().datetime().optional(),
 });
 export type TEmailCampaignCreateInput = z.infer<typeof ZEmailCampaignCreateInput>;
 
@@ -88,6 +90,8 @@ export const ZEmailCampaign = z.object({
   totalRecipients: z.number(),
   sentCount: z.number(),
   failedCount: z.number(),
+  skippedCount: z.number(),
+  scheduledAt: z.date().nullable(),
   createdAt: z.date(),
   updatedAt: z.date(),
 });

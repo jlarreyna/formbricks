@@ -7,12 +7,20 @@ import {
   MAX_EMAIL_CAMPAIGN_TEMPLATE_HTML,
   ZEmailCampaignMode,
   ZEmailCampaignRecipientInput,
+  ZEmailCampaignSource,
 } from "@formbricks/types/email-campaigns";
 import { authenticatedActionClient } from "@/lib/utils/action-client";
 import { checkAuthorizationUpdated } from "@/lib/utils/action-client/action-client-middleware";
 import { getOrganizationIdFromWorkspaceId } from "@/lib/utils/helper";
 import { withAuditLogging } from "@/modules/ee/audit-logs/lib/handler";
-import { createEmailCampaign, getEmailCampaigns, sendTransactionalEmailToContact } from "./lib/campaign";
+import {
+  cancelEmailCampaign,
+  createEmailCampaign,
+  getEmailCampaignFailures,
+  getEmailCampaigns,
+  rescheduleEmailCampaign,
+  sendTransactionalEmailToContact,
+} from "./lib/campaign";
 import {
   createEmailCampaignTemplate,
   deleteEmailCampaignTemplate,
@@ -23,12 +31,17 @@ import {
 
 const ZGetEmailCampaignsAction = z.object({
   workspaceId: ZId,
+  source: ZEmailCampaignSource.optional(),
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
 });
 
 export const getEmailCampaignsAction = authenticatedActionClient
   .inputSchema(ZGetEmailCampaignsAction)
   .action(async ({ ctx, parsedInput }) => {
-    const { workspaceId } = parsedInput;
+    const { workspaceId, source, from, to, page, limit } = parsedInput;
 
     await checkAuthorizationUpdated({
       userId: ctx.user.id,
@@ -39,7 +52,55 @@ export const getEmailCampaignsAction = authenticatedActionClient
       ],
     });
 
-    return getEmailCampaigns(workspaceId);
+    const result = await getEmailCampaigns({
+      workspaceId,
+      source,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+      page,
+      limit,
+    });
+
+    return {
+      ...result,
+      data: result.data.map((campaign) => ({
+        ...campaign,
+        scheduledAt: campaign.scheduledAt ? campaign.scheduledAt.toISOString() : null,
+        createdAt: campaign.createdAt.toISOString(),
+      })),
+    };
+  });
+
+const ZGetEmailCampaignRecipientsAction = z.object({
+  workspaceId: ZId,
+  campaignId: ZId,
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(100).optional(),
+});
+
+export const getEmailCampaignRecipientsAction = authenticatedActionClient
+  .inputSchema(ZGetEmailCampaignRecipientsAction)
+  .action(async ({ ctx, parsedInput }) => {
+    const { workspaceId, campaignId, page, limit } = parsedInput;
+
+    await checkAuthorizationUpdated({
+      userId: ctx.user.id,
+      organizationId: await getOrganizationIdFromWorkspaceId(workspaceId),
+      access: [
+        { type: "organization", roles: ["owner", "manager"] },
+        { type: "workspaceTeam", workspaceId, minPermission: "read" },
+      ],
+    });
+
+    const result = await getEmailCampaignFailures({ campaignId, workspaceId, page, limit });
+
+    return {
+      ...result,
+      data: result.data.map((failure) => ({
+        ...failure,
+        updatedAt: failure.updatedAt.toISOString(),
+      })),
+    };
   });
 
 const ZCreateEmailCampaignAction = z.object({
@@ -50,13 +111,14 @@ const ZCreateEmailCampaignAction = z.object({
   name: z.string().max(200).optional(),
   templateId: ZId.optional(),
   recipients: z.array(ZEmailCampaignRecipientInput).min(1).max(MAX_EMAIL_CAMPAIGN_RECIPIENTS),
+  scheduledAt: z.string().datetime().optional(),
 });
 
 export const createEmailCampaignAction = authenticatedActionClient
   .inputSchema(ZCreateEmailCampaignAction)
   .action(
     withAuditLogging("created", "emailCampaign", async ({ ctx, parsedInput }) => {
-      const { workspaceId, surveyId, mode, subject, name, templateId, recipients } = parsedInput;
+      const { workspaceId, surveyId, mode, subject, name, templateId, recipients, scheduledAt } = parsedInput;
       const organizationId = await getOrganizationIdFromWorkspaceId(workspaceId);
 
       await checkAuthorizationUpdated({
@@ -80,6 +142,7 @@ export const createEmailCampaignAction = authenticatedActionClient
         recipients,
         source: "ui",
         createdBy: ctx.user.id,
+        scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       });
 
       if (!result.ok) {
@@ -87,6 +150,77 @@ export const createEmailCampaignAction = authenticatedActionClient
       }
 
       ctx.auditLoggingCtx.emailCampaignId = result.data.id;
+      ctx.auditLoggingCtx.newObject = result.data as unknown as Record<string, unknown>;
+
+      return result.data;
+    })
+  );
+
+const ZCancelEmailCampaignAction = z.object({
+  workspaceId: ZId,
+  campaignId: ZId,
+});
+
+export const cancelEmailCampaignAction = authenticatedActionClient
+  .inputSchema(ZCancelEmailCampaignAction)
+  .action(
+    withAuditLogging("updated", "emailCampaign", async ({ ctx, parsedInput }) => {
+      const { workspaceId, campaignId } = parsedInput;
+      const organizationId = await getOrganizationIdFromWorkspaceId(workspaceId);
+
+      await checkAuthorizationUpdated({
+        userId: ctx.user.id,
+        organizationId,
+        access: [
+          { type: "organization", roles: ["owner", "manager"] },
+          { type: "workspaceTeam", workspaceId, minPermission: "readWrite" },
+        ],
+      });
+
+      ctx.auditLoggingCtx.organizationId = organizationId;
+      ctx.auditLoggingCtx.emailCampaignId = campaignId;
+
+      const result = await cancelEmailCampaign(campaignId, workspaceId);
+      if (!result.ok) {
+        throw new Error(result.error.details?.[0]?.issue ?? result.error.type);
+      }
+
+      ctx.auditLoggingCtx.newObject = result.data as unknown as Record<string, unknown>;
+
+      return result.data;
+    })
+  );
+
+const ZRescheduleEmailCampaignAction = z.object({
+  workspaceId: ZId,
+  campaignId: ZId,
+  scheduledAt: z.string().datetime(),
+});
+
+export const rescheduleEmailCampaignAction = authenticatedActionClient
+  .inputSchema(ZRescheduleEmailCampaignAction)
+  .action(
+    withAuditLogging("updated", "emailCampaign", async ({ ctx, parsedInput }) => {
+      const { workspaceId, campaignId, scheduledAt } = parsedInput;
+      const organizationId = await getOrganizationIdFromWorkspaceId(workspaceId);
+
+      await checkAuthorizationUpdated({
+        userId: ctx.user.id,
+        organizationId,
+        access: [
+          { type: "organization", roles: ["owner", "manager"] },
+          { type: "workspaceTeam", workspaceId, minPermission: "readWrite" },
+        ],
+      });
+
+      ctx.auditLoggingCtx.organizationId = organizationId;
+      ctx.auditLoggingCtx.emailCampaignId = campaignId;
+
+      const result = await rescheduleEmailCampaign(campaignId, workspaceId, new Date(scheduledAt));
+      if (!result.ok) {
+        throw new Error(result.error.details?.[0]?.issue ?? result.error.type);
+      }
+
       ctx.auditLoggingCtx.newObject = result.data as unknown as Record<string, unknown>;
 
       return result.data;

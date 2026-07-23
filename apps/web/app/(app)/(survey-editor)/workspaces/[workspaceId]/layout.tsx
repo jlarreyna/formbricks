@@ -28,7 +28,7 @@ const SurveyEditorWorkspaceLayout = async (props: {
   }
 
   return (
-    <div className="flex h-screen flex-col">
+    <div className="flex h-dvh flex-col">
       <div className="h-full overflow-y-auto bg-slate-50">{children}</div>
     </div>
   );

@@ -21,7 +21,14 @@ export const ContactsPage = async ({ params: paramsProps }: { params: Promise<{ 
   const isQuotasAllowed = await getIsQuotasEnabled(organization.id);
 
   const contactAttributeKeys = await getContactAttributeKeys(workspace.id);
-  const initialContacts = await getContacts(workspace.id, 0);
+  const initialContactsResult = await getContacts(
+    workspace.id,
+    1,
+    undefined,
+    undefined,
+    undefined,
+    ITEMS_PER_PAGE
+  );
 
   const AddContactsButton = (
     <div className="flex items-center gap-2">
@@ -33,6 +40,7 @@ export const ContactsPage = async ({ params: paramsProps }: { params: Promise<{ 
   return (
     <ContactsPageLayout
       pageTitle={t("common.contacts")}
+      pageDescription={t("workspace.contacts.page_description")}
       activeId="contacts"
       workspaceId={params.workspaceId}
       organizationId={organization.id}
@@ -44,8 +52,10 @@ export const ContactsPage = async ({ params: paramsProps }: { params: Promise<{ 
         itemsPerPage={ITEMS_PER_PAGE}
         contactAttributeKeys={contactAttributeKeys}
         isReadOnly={isReadOnly}
-        initialContacts={initialContacts}
-        hasMore={initialContacts.length >= ITEMS_PER_PAGE}
+        initialContacts={initialContactsResult.data}
+        initialTotal={initialContactsResult.total}
+        initialPage={initialContactsResult.page}
+        initialPageCount={initialContactsResult.pageCount}
         isQuotasAllowed={isQuotasAllowed}
       />
     </ContactsPageLayout>

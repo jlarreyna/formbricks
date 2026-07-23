@@ -5,13 +5,16 @@ import { z } from "zod";
 import { ZWidgetLayout } from "@formbricks/types/analysis";
 import { ZId } from "@formbricks/types/common";
 import { OperationNotAllowedError } from "@formbricks/types/errors";
+import { assertOrganizationAIConfigured } from "@/lib/ai/service";
 import { capturePostHogEvent } from "@/lib/posthog";
 import { authenticatedActionClient } from "@/lib/utils/action-client";
 import { AuthenticatedActionClientCtx } from "@/lib/utils/action-client/types/context";
+import { getTranslate } from "@/lingodotdev/server";
 import { checkWorkspaceAccess } from "@/modules/ee/analysis/lib/access";
 import { withAuditLogging } from "@/modules/ee/audit-logs/lib/handler";
 import { getIsDashboardsEnabled } from "@/modules/ee/license-check/lib/utils";
 import { ZDashboardUpdateInput } from "../types/analysis";
+import { generateDashboardAIReport } from "./lib/ai-report/generate.server";
 import {
   addChartToDashboard,
   createDashboard,
@@ -414,3 +417,49 @@ export const removeWidgetFromDashboardAction = authenticatedActionClient
       return { success: true };
     })
   );
+
+const ZGenerateDashboardAIReportAction = z.object({
+  workspaceId: ZId,
+  dashboardId: ZId,
+  widgetIds: z.array(ZId).optional(),
+});
+
+export const generateDashboardAIReportAction = authenticatedActionClient
+  .inputSchema(ZGenerateDashboardAIReportAction)
+  .action(async ({ ctx, parsedInput }) => {
+    const { organizationId, workspaceId } = await checkWorkspaceAccess(
+      ctx.user.id,
+      parsedInput.workspaceId,
+      "read"
+    );
+    await checkDashboardsEnabled(organizationId);
+    await assertOrganizationAIConfigured(organizationId);
+
+    const dashboard = await getDashboard(parsedInput.dashboardId, workspaceId);
+    const widgets = parsedInput.widgetIds
+      ? dashboard.widgets.filter((widget) => parsedInput.widgetIds?.includes(widget.id))
+      : dashboard.widgets;
+
+    const t = await getTranslate();
+    const sections = await generateDashboardAIReport({
+      organizationId,
+      workspaceId,
+      userId: ctx.user.id,
+      dashboardName: dashboard.name,
+      widgets,
+      headings: {
+        summary: t("workspace.analysis.dashboards.export.ai_report_summary_heading"),
+        keyFindings: t("workspace.analysis.dashboards.export.ai_report_key_findings_heading"),
+        recommendations: t("workspace.analysis.dashboards.export.ai_report_recommendations_heading"),
+      },
+    });
+
+    capturePostHogEvent(
+      ctx.user.id,
+      "dashboard_ai_report_generated",
+      { dashboard_id: dashboard.id },
+      { organizationId, workspaceId }
+    );
+
+    return { sections };
+  });

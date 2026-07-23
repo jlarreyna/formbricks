@@ -8,6 +8,7 @@ export const JOB_NAMES = {
   responsePipeline: "response-pipeline.process",
   surveyScheduling: "survey-scheduling.reconcile",
   emailCampaignRecipient: "email-campaign-recipient.process",
+  emailCampaignDispatch: "email-campaign.dispatch",
   responseAnalysis: "response-analysis.process",
 } as const;
 

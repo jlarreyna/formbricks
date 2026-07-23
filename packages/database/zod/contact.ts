@@ -17,6 +17,7 @@ export const ZContact = z.object({
     })
     .describe("When the contact was last updated"),
   workspaceId: z.cuid2().describe("The ID of the workspace this contact belongs to"),
+  fatigueScore: z.number().describe("Survey fatigue score from 0 to 100, calculated by the backend"),
 }) satisfies z.ZodType<Contact>;
 
 ZContact.meta({

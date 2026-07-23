@@ -137,6 +137,8 @@ model Contact {
   updatedAt               DateTime                 @updatedAt @map(name: "updated_at")
   workspace               Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   workspaceId             String
+  /// Survey fatigue score (0-100), calculated by the backend
+  fatigueScore            Float                    @default(0)
   responses               Response[]
   attributes              ContactAttribute[]
   displays                Display[]
@@ -151,9 +153,11 @@ enum EmailCampaignMode {
 }
 
 enum EmailCampaignStatus {
+  scheduled
   processing
   completed
   failed
+  canceled
 }
 
 enum EmailCampaignSource {
@@ -166,6 +170,7 @@ enum EmailCampaignRecipientStatus {
   pending
   sent
   failed
+  skipped
 }
 
 /// Represents a bulk or transactional email send of a survey (embedded or as a link) to a set of contacts.
@@ -174,6 +179,8 @@ enum EmailCampaignRecipientStatus {
 /// @property status - Aggregate processing status, updated as recipients are processed by the background worker
 /// @property source - Whether the campaign was created from the workspace UI, the public API, or a single-contact transactional send
 /// @property htmlTemplate - Snapshot of the resolved HTML template at send time (survives later edits to saved templates)
+/// @property scheduledAt - When set, the campaign is dispatched at this future time instead of immediately
+/// @property dispatchJobId - BullMQ job id of the pending dispatch job, used to cancel/reschedule before it runs
 model EmailCampaign {
   id              String                   @id @default(cuid())
   createdAt       DateTime                 @default(now()) @map(name: "created_at")
@@ -195,11 +202,15 @@ model EmailCampaign {
   totalRecipients Int                      @default(0)
   sentCount       Int                      @default(0)
   failedCount     Int                      @default(0)
+  skippedCount    Int                      @default(0)
+  scheduledAt     DateTime?                @map(name: "scheduled_at")
+  dispatchJobId   String?                  @map(name: "dispatch_job_id")
   recipients      EmailCampaignRecipient[]
 
   @@index([workspaceId, createdAt])
   @@index([surveyId])
   @@index([templateId])
+  @@index([status, scheduledAt])
 }
 
 /// A reusable HTML email template scoped to a workspace. Campaigns snapshot the resolved HTML at send time.
@@ -240,6 +251,7 @@ model EmailCampaignRecipient {
 
   @@index([campaignId])
   @@index([campaignId, status])
+  @@index([contactId, sentAt])
 }
 
 /// Stores a user's response to a survey, including their answers and metadata.
@@ -514,6 +526,10 @@ model Survey {
   displayOption       displayOptions          @default(displayOnce)
   recontactDays       Int?
   displayLimit        Int?
+  /// Higher value wins when multiple surveys are eligible for the same contact
+  priority            Int                     @default(0)
+  /// [SurveyAudienceFilters]
+  audienceFilters     Json?
   triggers            SurveyTrigger[]
   /// [SurveyInlineTriggers]
   inlineTriggers      Json?
@@ -752,6 +768,8 @@ model Workspace {
   styling                     Json                         @default("{\"allowStyleOverwrite\":true}")
   /// [WorkspaceConfig]
   config                      Json                         @default("{}")
+  /// [ContactabilityRules]
+  contactabilityRules         Json?
   recontactDays               Int                          @default(7)
   linkSurveyBranding          Boolean                      @default(false) // Determines if the survey branding should be displayed in link surveys
   inAppSurveyBranding         Boolean                      @default(false) // Determines if the survey branding should be displayed in in-app surveys

@@ -47,8 +47,23 @@ export const GET = async (request: NextRequest) =>
         return handleApiError(request, { type: "forbidden" });
       }
 
-      const campaigns = await getEmailCampaigns(query.workspaceId);
-      return responses.successResponse({ data: campaigns });
+      const result = await getEmailCampaigns({
+        workspaceId: query.workspaceId,
+        source: query.source,
+        from: query.from ? new Date(query.from) : undefined,
+        to: query.to ? new Date(query.to) : undefined,
+        page: query.page,
+        limit: query.limit,
+      });
+      return responses.successResponse({
+        data: result.data,
+        meta: {
+          total: result.total,
+          page: result.page,
+          pageSize: result.pageSize,
+          pageCount: result.pageCount,
+        },
+      });
     },
   });
 
@@ -94,6 +109,7 @@ const handleJsonPost = async (request: NextRequest) =>
         templateId: body.templateId,
         recipients: recipientsResult.data,
         source: "api",
+        scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
       });
 
       if (!result.ok) {
@@ -139,6 +155,7 @@ const handleMultipartPost = async (request: NextRequest) =>
         subject: getStringFormValue(formData, "subject"),
         name: getStringFormValue(formData, "name"),
         templateId: getStringFormValue(formData, "templateId"),
+        scheduledAt: getStringFormValue(formData, "scheduledAt"),
       };
 
       const parsedFields = ZEmailCampaignMultipartCreateInput.safeParse(rawFields);
@@ -213,6 +230,7 @@ const handleMultipartPost = async (request: NextRequest) =>
         templateId: parsedFields.data.templateId,
         recipients: recipientsResult.data,
         source: "api",
+        scheduledAt: parsedFields.data.scheduledAt ? new Date(parsedFields.data.scheduledAt) : undefined,
       });
 
       if (!result.ok) {

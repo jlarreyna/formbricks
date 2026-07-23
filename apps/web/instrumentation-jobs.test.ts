@@ -11,6 +11,7 @@ const mockGetJobsWorkerBootstrapConfig = vi.fn();
 const mockProcessResponsePipelineJob = vi.fn();
 const mockProcessSurveySchedulingJob = vi.fn();
 const mockProcessEmailCampaignRecipientJob = vi.fn();
+const mockProcessEmailCampaignDispatchJob = vi.fn();
 const mockProcessResponseAnalysisJob = vi.fn();
 const TEST_TIMEOUT_MS = 15_000;
 
@@ -48,6 +49,10 @@ vi.mock("@/modules/survey/scheduling/lib/process-survey-scheduling-job", () => (
 
 vi.mock("@/modules/ee/email-campaigns/lib/process-email-campaign-recipient-job", () => ({
   processEmailCampaignRecipientJob: mockProcessEmailCampaignRecipientJob,
+}));
+
+vi.mock("@/modules/ee/email-campaigns/lib/process-email-campaign-dispatch-job", () => ({
+  processEmailCampaignDispatchJob: mockProcessEmailCampaignDispatchJob,
 }));
 
 vi.mock("@/modules/ee/response-analysis/lib/process-response-analysis-job", () => ({
@@ -119,6 +124,7 @@ describe("instrumentation-jobs", () => {
         "response-pipeline.process": expect.any(Function),
         "survey-scheduling.reconcile": expect.any(Function),
         "email-campaign-recipient.process": expect.any(Function),
+        "email-campaign.dispatch": expect.any(Function),
         "response-analysis.process": expect.any(Function),
         "test-log.process": mockExistingOverride,
       },
@@ -129,6 +135,7 @@ describe("instrumentation-jobs", () => {
     const responsePipelineOverride = overrides?.["response-pipeline.process"];
     const surveySchedulingOverride = overrides?.["survey-scheduling.reconcile"];
     const emailCampaignRecipientOverride = overrides?.["email-campaign-recipient.process"];
+    const emailCampaignDispatchOverride = overrides?.["email-campaign.dispatch"];
     const responseAnalysisOverride = overrides?.["response-analysis.process"];
 
     await responsePipelineOverride?.(
@@ -181,6 +188,32 @@ describe("instrumentation-jobs", () => {
         attempt: 1,
         jobId: "job_789",
         jobName: "email-campaign-recipient.process",
+        maxAttempts: 3,
+        queueName: "background-jobs",
+      }
+    );
+
+    await emailCampaignDispatchOverride?.(
+      {
+        campaignId: "campaign_123",
+      },
+      {
+        attempt: 1,
+        jobId: "job_999",
+        jobName: "email-campaign.dispatch",
+        maxAttempts: 3,
+        queueName: "background-jobs",
+      }
+    );
+
+    expect(mockProcessEmailCampaignDispatchJob).toHaveBeenCalledWith(
+      {
+        campaignId: "campaign_123",
+      },
+      {
+        attempt: 1,
+        jobId: "job_999",
+        jobName: "email-campaign.dispatch",
         maxAttempts: 3,
         queueName: "background-jobs",
       }

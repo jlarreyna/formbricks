@@ -12,7 +12,8 @@ export type TCubeQuerySource =
   | "charts.executeQueryAction"
   | "charts.generateAIChartAction"
   | "charts.getDimensionValuesAction"
-  | "dashboards.widget";
+  | "dashboards.widget"
+  | "dashboards.export";
 
 export type TCubeTenantScope = {
   feedbackDirectoryId: string;

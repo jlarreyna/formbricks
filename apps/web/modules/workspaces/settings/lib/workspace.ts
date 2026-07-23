@@ -60,6 +60,7 @@ const selectWorkspace = {
   organizationId: true,
   languages: true,
   recontactDays: true,
+  contactabilityRules: true,
   linkSurveyBranding: true,
   inAppSurveyBranding: true,
   config: true,

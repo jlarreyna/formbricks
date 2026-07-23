@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowDownUpIcon } from "lucide-react";
+import { ArrowDownUpIcon, HistoryIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TDisplay } from "@formbricks/types/displays";
@@ -112,10 +112,11 @@ export const ActivityTimeline = ({
   return (
     <div className="lg:col-span-3">
       <div className="flex items-center justify-between pb-6">
-        <h2 className="text-lg font-bold text-slate-700">
+        <h2 className="flex items-center gap-2 text-lg font-bold text-slate-700">
+          <HistoryIcon className="size-5 text-slate-400" />
           {t("common.activity")}
           {timelineItems.length > 0 && (
-            <span className="ml-2 text-sm font-normal text-slate-400">({timelineItems.length})</span>
+            <span className="text-sm font-normal text-slate-400">({timelineItems.length})</span>
           )}
         </h2>
         <button

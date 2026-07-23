@@ -8,7 +8,6 @@ import { PageHeader } from "@/modules/ui/components/page-header";
 import { getWorkspaceAuth } from "@/modules/workspaces/lib/utils";
 import { CustomScriptsForm } from "./components/custom-scripts-form";
 import { DeleteWorkspace } from "./components/delete-workspace";
-import { EditWaitingTimeForm } from "./components/edit-waiting-time-form";
 import { EditWorkspaceNameForm } from "./components/edit-workspace-name-form";
 
 export const GeneralSettingsPage = async (props: { params: Promise<{ workspaceId: string }> }) => {
@@ -30,11 +29,6 @@ export const GeneralSettingsPage = async (props: { params: Promise<{ workspaceId
         title={t("common.workspace_name")}
         description={t("workspace.general.workspace_name_settings_description")}>
         <EditWorkspaceNameForm workspace={workspace} isReadOnly={isReadOnly} />
-      </SettingsCard>
-      <SettingsCard
-        title={t("workspace.general.recontact_waiting_time")}
-        description={t("workspace.general.recontact_waiting_time_settings_description")}>
-        <EditWaitingTimeForm workspace={workspace} isReadOnly={isReadOnly} />
       </SettingsCard>
       {!IS_FORMBRICKS_CLOUD && (
         <SettingsCard

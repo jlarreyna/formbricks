@@ -15,6 +15,7 @@ import {
 import { Button } from "@/modules/ui/components/button";
 import { Calendar } from "@/modules/ui/components/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/modules/ui/components/popover";
+import { TooltipRenderer } from "@/modules/ui/components/tooltip";
 
 type AuditRow = {
   id: string;
@@ -590,8 +591,20 @@ export const AuditSettingsView = ({
                     </td>
                     <td className="px-4 py-3 text-slate-700">{row.status}</td>
                     <td className="px-4 py-3 text-slate-700">{row.ipAddress || "—"}</td>
-                    <td className="max-w-md truncate px-4 py-3 font-mono text-xs text-slate-600">
-                      {row.changes || "—"}
+                    <td className="max-w-md px-4 py-3 font-mono text-xs text-slate-600">
+                      {row.changes ? (
+                        <TooltipRenderer
+                          tooltipContent={
+                            <pre className="max-h-64 max-w-md overflow-auto font-mono text-xs break-words whitespace-pre-wrap">
+                              {row.changes}
+                            </pre>
+                          }
+                          triggerClass="block truncate">
+                          {row.changes}
+                        </TooltipRenderer>
+                      ) : (
+                        "—"
+                      )}
                     </td>
                   </tr>
                 ))}

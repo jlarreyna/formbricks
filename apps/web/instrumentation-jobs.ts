@@ -1,6 +1,7 @@
 import {
   type JobHandlerOverrides,
   type JobsRuntimeHandle,
+  type TEmailCampaignDispatchJobData,
   type TEmailCampaignRecipientJobData,
   type TResponseAnalysisJobData,
   type TResponsePipelineJobData,
@@ -11,6 +12,7 @@ import {
 } from "@formbricks/jobs";
 import { logger } from "@formbricks/logger";
 import { getJobsQueueingConfig, getJobsWorkerBootstrapConfig } from "@/lib/jobs/config";
+import { processEmailCampaignDispatchJob } from "@/modules/ee/email-campaigns/lib/process-email-campaign-dispatch-job";
 import { processEmailCampaignRecipientJob } from "@/modules/ee/email-campaigns/lib/process-email-campaign-recipient-job";
 import { processResponseAnalysisJob } from "@/modules/ee/response-analysis/lib/process-response-analysis-job";
 import { processResponsePipelineJob } from "@/modules/response-pipeline/lib/process-response-pipeline-job";
@@ -37,6 +39,7 @@ const globalForJobsRuntime = globalThis as TJobsRuntimeGlobal;
 const RESPONSE_PIPELINE_JOB_NAME = "response-pipeline.process";
 const SURVEY_SCHEDULING_JOB_NAME = "survey-scheduling.reconcile";
 const EMAIL_CAMPAIGN_RECIPIENT_JOB_NAME = "email-campaign-recipient.process";
+const EMAIL_CAMPAIGN_DISPATCH_JOB_NAME = "email-campaign.dispatch";
 const RESPONSE_ANALYSIS_JOB_NAME = "response-analysis.process";
 
 const responsePipelineJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
@@ -47,6 +50,9 @@ const surveySchedulingJobHandler: NonNullable<JobHandlerOverrides[string]> = asy
 };
 const emailCampaignRecipientJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
   await processEmailCampaignRecipientJob(data as TEmailCampaignRecipientJobData, context);
+};
+const emailCampaignDispatchJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
+  await processEmailCampaignDispatchJob(data as TEmailCampaignDispatchJobData, context);
 };
 const responseAnalysisJobHandler: NonNullable<JobHandlerOverrides[string]> = async (data, context) => {
   await processResponseAnalysisJob(data as TResponseAnalysisJobData, context);
@@ -183,12 +189,14 @@ export const registerJobsWorker = async (): Promise<JobsRuntimeHandle | null> =>
         [RESPONSE_PIPELINE_JOB_NAME]: responsePipelineJobHandler,
         [SURVEY_SCHEDULING_JOB_NAME]: surveySchedulingJobHandler,
         [EMAIL_CAMPAIGN_RECIPIENT_JOB_NAME]: emailCampaignRecipientJobHandler,
+        [EMAIL_CAMPAIGN_DISPATCH_JOB_NAME]: emailCampaignDispatchJobHandler,
         [RESPONSE_ANALYSIS_JOB_NAME]: responseAnalysisJobHandler,
       }
     : {
         [RESPONSE_PIPELINE_JOB_NAME]: responsePipelineJobHandler,
         [SURVEY_SCHEDULING_JOB_NAME]: surveySchedulingJobHandler,
         [EMAIL_CAMPAIGN_RECIPIENT_JOB_NAME]: emailCampaignRecipientJobHandler,
+        [EMAIL_CAMPAIGN_DISPATCH_JOB_NAME]: emailCampaignDispatchJobHandler,
         [RESPONSE_ANALYSIS_JOB_NAME]: responseAnalysisJobHandler,
       };
 

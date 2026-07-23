@@ -111,6 +111,7 @@ const selectContact = {
   createdAt: true,
   updatedAt: true,
   workspaceId: true,
+  fatigueScore: true,
   attributes: {
     select: {
       value: true,
@@ -127,8 +128,39 @@ const selectContact = {
   },
 } satisfies Prisma.ContactSelect;
 
-export const buildContactWhereClause = (workspaceId: string, search?: string): Prisma.ContactWhereInput => {
+export type TContactListFilters = {
+  search?: string;
+  from?: Date;
+  to?: Date;
+};
+
+export type TPaginatedContacts = {
+  data: TContactWithAttributes[];
+  total: number;
+  page: number;
+  pageSize: number;
+  pageCount: number;
+};
+
+const DEFAULT_CONTACTS_PAGE_SIZE = ITEMS_PER_PAGE;
+const MAX_CONTACTS_PAGE_SIZE = 100;
+
+const normalizeContactsPagination = (page?: number, limit?: number) => {
+  const pageSize = Math.min(Math.max(limit ?? DEFAULT_CONTACTS_PAGE_SIZE, 1), MAX_CONTACTS_PAGE_SIZE);
+  const currentPage = Math.max(page ?? 1, 1);
+  return {
+    page: currentPage,
+    pageSize,
+    skip: (currentPage - 1) * pageSize,
+  };
+};
+
+export const buildContactWhereClause = (
+  workspaceId: string,
+  filters?: TContactListFilters
+): Prisma.ContactWhereInput => {
   const whereClause: Prisma.ContactWhereInput = { workspaceId };
+  const search = filters?.search?.trim();
 
   if (search) {
     whereClause.OR = [
@@ -151,25 +183,62 @@ export const buildContactWhereClause = (workspaceId: string, search?: string): P
     ];
   }
 
+  if (filters?.from || filters?.to) {
+    whereClause.createdAt = {
+      ...(filters.from ? { gte: filters.from } : {}),
+      ...(filters.to ? { lte: filters.to } : {}),
+    };
+  }
+
   return whereClause;
 };
 
 export const getContacts = reactCache(
-  async (workspaceId: string, offset?: number, searchValue?: string): Promise<TContactWithAttributes[]> => {
-    validateInputs([workspaceId, ZId], [offset, ZOptionalNumber], [searchValue, ZOptionalString]);
+  async (
+    workspaceId: string,
+    page?: number,
+    searchValue?: string,
+    from?: string,
+    to?: string,
+    limit?: number
+  ): Promise<TPaginatedContacts> => {
+    validateInputs(
+      [workspaceId, ZId],
+      [page, ZOptionalNumber],
+      [searchValue, ZOptionalString],
+      [from, ZOptionalString],
+      [to, ZOptionalString],
+      [limit, ZOptionalNumber]
+    );
+
+    const { page: currentPage, pageSize, skip } = normalizeContactsPagination(page, limit);
+    const where = buildContactWhereClause(workspaceId, {
+      search: searchValue,
+      from: from ? new Date(from) : undefined,
+      to: to ? new Date(to) : undefined,
+    });
 
     try {
-      const contacts = await prisma.contact.findMany({
-        where: buildContactWhereClause(workspaceId, searchValue),
-        select: selectContact,
-        take: ITEMS_PER_PAGE,
-        skip: offset,
-        orderBy: {
-          createdAt: "desc",
-        },
-      });
+      const [total, contacts] = await Promise.all([
+        prisma.contact.count({ where }),
+        prisma.contact.findMany({
+          where,
+          select: selectContact,
+          take: pageSize,
+          skip,
+          orderBy: {
+            createdAt: "desc",
+          },
+        }),
+      ]);
 
-      return contacts.map((contact) => transformPrismaContact(contact));
+      return {
+        data: contacts.map((contact) => transformPrismaContact(contact)),
+        total,
+        page: currentPage,
+        pageSize,
+        pageCount: Math.max(1, Math.ceil(total / pageSize)),
+      };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         throw new DatabaseError(error.message);

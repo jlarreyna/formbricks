@@ -8,6 +8,7 @@ import { ContactsSecondaryNavigation } from "./contacts-secondary-navigation";
 
 interface ContactsPageLayoutProps {
   pageTitle: string;
+  pageDescription?: string;
   activeId: string;
   workspaceId: string;
   organizationId: string;
@@ -22,6 +23,7 @@ interface ContactsPageLayoutProps {
 
 export const ContactsPageLayout = async ({
   pageTitle,
+  pageDescription,
   activeId,
   workspaceId,
   organizationId,
@@ -39,6 +41,7 @@ export const ContactsPageLayout = async ({
   return (
     <PageContentWrapper>
       <PageHeader pageTitle={pageTitle} cta={isContactsEnabled && !isReadOnly ? cta : undefined}>
+        {pageDescription && <p className="pb-4 text-sm text-slate-500">{pageDescription}</p>}
         <ContactsSecondaryNavigation activeId={activeId} workspaceId={workspaceId} />
       </PageHeader>
 

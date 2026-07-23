@@ -21,15 +21,17 @@ export const EmailCampaignsPage = async (props: Readonly<{ params: Promise<{ wor
     return notFound();
   }
 
-  const [surveys, campaigns, templates] = await Promise.all([
+  const [surveys, campaignsResult, templates] = await Promise.all([
     getSurveys(workspace.id),
-    getEmailCampaigns(workspace.id),
+    getEmailCampaigns({ workspaceId: workspace.id }),
     getEmailCampaignTemplates(workspace.id),
   ]);
 
   return (
     <PageContentWrapper>
-      <PageHeader pageTitle={t("workspace.email_campaigns.title")} />
+      <PageHeader pageTitle={t("workspace.email_campaigns.title")}>
+        <p className="pb-4 text-sm text-slate-500">{t("workspace.email_campaigns.page_description")}</p>
+      </PageHeader>
       <EmailCampaignsPageClient
         workspaceId={workspace.id}
         surveys={surveys.map((survey) => ({
@@ -37,7 +39,7 @@ export const EmailCampaignsPage = async (props: Readonly<{ params: Promise<{ wor
           name: survey.name,
           hiddenFieldIds: survey.hiddenFields.enabled ? (survey.hiddenFields.fieldIds ?? []) : [],
         }))}
-        initialCampaigns={campaigns}
+        initialCampaigns={campaignsResult}
         initialTemplates={templates}
         isReadOnly={isReadOnly}
         isSmtpConfigured={IS_SMTP_CONFIGURED}

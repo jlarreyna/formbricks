@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Suspense, memo, useCallback, useMemo, useState, useTransition } from "react";
+import { Suspense, memo, useCallback, useMemo, useRef, useState, useTransition } from "react";
+import type { Ref } from "react";
 import { ResponsiveGridLayout, useContainerWidth, verticalCompactor } from "react-grid-layout";
 import type { Layout, LayoutItem } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
@@ -17,6 +18,7 @@ import { DashboardPageHeader } from "@/modules/ee/analysis/dashboards/components
 import { DashboardWidget } from "@/modules/ee/analysis/dashboards/components/dashboard-widget";
 import { DashboardWidgetData } from "@/modules/ee/analysis/dashboards/components/dashboard-widget-data";
 import { DashboardWidgetSkeleton } from "@/modules/ee/analysis/dashboards/components/dashboard-widget-skeleton";
+import { ExportDialog } from "@/modules/ee/analysis/dashboards/components/export-dialog";
 import type { TChartDataRow, TDashboardDetail, TDashboardWidget } from "@/modules/ee/analysis/types/analysis";
 import { EmptyState } from "@/modules/ui/components/empty-state";
 import { GoBackButton } from "@/modules/ui/components/go-back-button";
@@ -31,6 +33,8 @@ import {
 import type { TDashboardWidgetError } from "../lib/widget-errors";
 
 const ROW_HEIGHT = 80;
+
+type TExportRequest = { mode: "panel"; widgetId: string } | { mode: "dashboard" };
 
 interface DashboardDetailClientProps {
   workspaceId: string;
@@ -129,18 +133,22 @@ const MemoizedWidgetItem = memo(function WidgetItem({
   widget,
   isEditing,
   dataPromise,
+  contentRef,
   onEdit,
   onDuplicate,
   onResize,
   onRemove,
+  onExport,
 }: Readonly<{
   widget: TDashboardWidget;
   isEditing: boolean;
   dataPromise?: Promise<{ data: TChartDataRow[]; query: TChartQuery } | { error: TDashboardWidgetError }>;
+  contentRef?: Ref<HTMLDivElement>;
   onEdit?: () => void;
   onDuplicate?: () => void;
   onResize?: () => void;
   onRemove?: () => void;
+  onExport?: () => void;
 }>) {
   const title = widget.chart?.name ?? "";
 
@@ -148,10 +156,12 @@ const MemoizedWidgetItem = memo(function WidgetItem({
     <DashboardWidget
       title={title}
       isEditing={isEditing}
+      contentRef={contentRef}
       onEdit={onEdit}
       onDuplicate={onDuplicate}
       onResize={onResize}
-      onRemove={onRemove}>
+      onRemove={onRemove}
+      onExport={onExport}>
       <MemoizedWidgetContent widget={widget} dataPromise={dataPromise} />
     </DashboardWidget>
   );
@@ -173,12 +183,39 @@ export function DashboardDetailClient({
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingChartId, setEditingChartId] = useState<string | null>(null);
+  const [exportRequest, setExportRequest] = useState<TExportRequest | null>(null);
   const [, startTransition] = useTransition();
 
   const [name, setName] = useState(dashboard.name);
   const [draftWidgets, setDraftWidgets] = useState<TDashboardWidget[] | null>(null);
 
   const widgets = draftWidgets ?? dashboard.widgets;
+
+  const contentNodesRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const contentRefCallbacks = useRef<Map<string, (el: HTMLDivElement | null) => void>>(new Map());
+
+  const getContentRefCallback = useCallback((widgetId: string) => {
+    let callback = contentRefCallbacks.current.get(widgetId);
+    if (!callback) {
+      callback = (el) => {
+        if (el) {
+          contentNodesRef.current.set(widgetId, el);
+        } else {
+          contentNodesRef.current.delete(widgetId);
+        }
+      };
+      contentRefCallbacks.current.set(widgetId, callback);
+    }
+    return callback;
+  }, []);
+
+  const getPanelNode = useCallback((widgetId: string) => contentNodesRef.current.get(widgetId) ?? null, []);
+
+  const exportWidgets = useMemo(() => {
+    if (!exportRequest) return [];
+    if (exportRequest.mode === "dashboard") return widgets;
+    return widgets.filter((widget) => widget.id === exportRequest.widgetId);
+  }, [exportRequest, widgets]);
 
   const hasChanges = useMemo(() => {
     if (name !== dashboard.name) return true;
@@ -407,6 +444,7 @@ export function DashboardDetailClient({
             onEditToggle={handleEnterEditMode}
             onSave={handleSave}
             onCancel={handleCancel}
+            onExport={() => setExportRequest({ mode: "dashboard" })}
           />
         }
       />
@@ -443,12 +481,14 @@ export function DashboardDetailClient({
                       widget={widget}
                       isEditing={isEditing}
                       dataPromise={widgetDataPromises.get(widget.id)}
+                      contentRef={getContentRefCallback(widget.id)}
                       onEdit={isReadOnly ? undefined : () => handleEditChart(widget.chartId)}
                       // Duplicate is hidden in edit mode: saving edit-mode drafts removes any
                       // widget not present in the draft, which would delete the fresh copy.
                       onDuplicate={isReadOnly || isEditing ? undefined : () => handleDuplicateWidget(widget)}
                       onResize={isReadOnly ? undefined : handleEnterEditMode}
                       onRemove={isReadOnly ? undefined : () => handleRemoveWidgetFromMenu(widget.id)}
+                      onExport={() => setExportRequest({ mode: "panel", widgetId: widget.id })}
                     />
                   </div>
                 ))}
@@ -474,6 +514,22 @@ export function DashboardDetailClient({
             });
           }}
           directories={directories}
+          isAIAvailable={isAIAvailable}
+          aiUnavailableReason={aiUnavailableReason}
+        />
+      )}
+      {exportRequest && (
+        <ExportDialog
+          open
+          onOpenChange={(open) => {
+            if (!open) setExportRequest(null);
+          }}
+          mode={exportRequest.mode}
+          workspaceId={workspaceId}
+          dashboardId={dashboard.id}
+          dashboardName={name}
+          widgets={exportWidgets}
+          getPanelNode={getPanelNode}
           isAIAvailable={isAIAvailable}
           aiUnavailableReason={aiUnavailableReason}
         />

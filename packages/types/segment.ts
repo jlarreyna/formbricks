@@ -302,21 +302,21 @@ export const ZBaseFilters: z.ZodType<TBaseFilters> = z.lazy(() => z.array(ZBaseF
 
 // here again, we refine the filters to make sure that the filters are valid
 const refineFilters = (filters: TBaseFilters): boolean => {
-  let result = true;
-
   for (let i = 0; i < filters.length; i++) {
     const group = filters[i];
 
-    if (Array.isArray(group.resource)) {
-      result = refineFilters(group.resource);
-    } else if (i === 0 && group.connector !== null) {
-      // if the connector for a "first" group is not null, it's invalid
-      result = false;
-      break;
+    // the connector for the "first" item in a group (whether it's a filter or a nested
+    // group) must always be null
+    if (i === 0 && group.connector !== null) {
+      return false;
+    }
+
+    if (Array.isArray(group.resource) && !refineFilters(group.resource)) {
+      return false;
     }
   }
 
-  return result;
+  return true;
 };
 
 // The filters can be nested, so we need to use z.lazy to define the type

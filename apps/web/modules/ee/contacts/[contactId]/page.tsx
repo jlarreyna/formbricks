@@ -43,6 +43,10 @@ export const SingleContactPage = async (props: {
   };
 
   const contactIdentifier = getAttributeValue("email") || getAttributeValue("userId") || "";
+  const fullName = [getAttributeValue("firstName"), getAttributeValue("lastName")].filter(Boolean).join(" ");
+  const pageTitle = fullName || contactIdentifier || t("common.contact");
+  const contactSubtitle =
+    fullName && contactIdentifier && fullName !== contactIdentifier ? contactIdentifier : undefined;
 
   const getContactControlBar = () => {
     return (
@@ -60,7 +64,9 @@ export const SingleContactPage = async (props: {
   return (
     <PageContentWrapper>
       <GoBackButton url={`/workspaces/${workspace.id}/contacts`} />
-      <PageHeader pageTitle={contactIdentifier} cta={getContactControlBar()} />
+      <PageHeader pageTitle={pageTitle} cta={getContactControlBar()}>
+        {contactSubtitle && <p className="pb-4 text-sm text-slate-500">{contactSubtitle}</p>}
+      </PageHeader>
       <section className="pt-6 pb-24">
         <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-4">
           <div className="lg:sticky lg:top-6 lg:col-span-1">

@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 import { TOrganization } from "@formbricks/types/organizations";
 import { TUser } from "@formbricks/types/user";
 import { getOrganizationsForSwitcherAction } from "@/app/(app)/workspaces/[workspaceId]/actions";
-import FBLogo from "@/images/formbricks-wordmark.svg";
+import FBLogo from "@/images/AR_horiz_0.svg";
 import { cn } from "@/lib/cn";
 import { SwitcherDropdownBody } from "@/modules/settings/components/switcher-dropdown-body";
 import { UserDropdown } from "@/modules/settings/components/user-dropdown";

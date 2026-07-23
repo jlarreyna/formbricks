@@ -20,6 +20,7 @@ import {
   toBullMQRepeatOptions,
 } from "@/src/schedules";
 import {
+  type TEmailCampaignDispatchJobData,
   type TEmailCampaignRecipientJobData,
   type TResponseAnalysisJobData,
   type TResponsePipelineJobData,
@@ -257,6 +258,18 @@ export const enqueueEmailCampaignRecipientJob = async (
   }
 };
 
+export const enqueueEmailCampaignDispatchJob = async (data: TEmailCampaignDispatchJobData): Promise<Job> => {
+  try {
+    return await enqueueBackgroundJob(JOB_NAMES.emailCampaignDispatch, data);
+  } catch (error) {
+    logger.error(
+      { err: error, jobName: JOB_NAMES.emailCampaignDispatch },
+      "Failed to enqueue BullMQ email campaign dispatch job"
+    );
+    throw error;
+  }
+};
+
 export const enqueueResponseAnalysisJob = async (data: TResponseAnalysisJobData): Promise<Job> => {
   try {
     return await enqueueBackgroundJob(JOB_NAMES.responseAnalysis, data);
@@ -311,6 +324,40 @@ export const scheduleSurveySchedulingJobAt = async (
       "Failed to schedule BullMQ survey scheduling job"
     );
     throw error;
+  }
+};
+
+export const scheduleEmailCampaignDispatchJobAt = async (
+  schedule: TRunAtBackgroundJobSchedule,
+  data: TEmailCampaignDispatchJobData
+): Promise<Job> => {
+  try {
+    return await scheduleBackgroundJobAt(JOB_NAMES.emailCampaignDispatch, schedule, data);
+  } catch (error) {
+    logger.error(
+      { err: error, jobName: JOB_NAMES.emailCampaignDispatch, schedule },
+      "Failed to schedule BullMQ email campaign dispatch job"
+    );
+    throw error;
+  }
+};
+
+/**
+ * Removes a previously enqueued/scheduled job by id, e.g. to cancel a pending email campaign
+ * dispatch. Tolerant of already-removed or already-run jobs (returns false instead of throwing).
+ */
+export const removeBackgroundJob = async (jobId: string): Promise<boolean> => {
+  try {
+    const { queue } = await getJobsQueue();
+    const job = await queue.getJob(jobId);
+    if (!job) {
+      return false;
+    }
+    await job.remove();
+    return true;
+  } catch (error) {
+    logger.error({ err: error, jobId }, "Failed to remove BullMQ job");
+    return false;
   }
 };
 

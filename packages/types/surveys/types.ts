@@ -2,6 +2,7 @@ import { z } from "zod";
 import { ZActionClass, ZActionClassNoCodeConfig } from "../action-classes";
 import { ZColor, ZEndingCardUrl, ZId, ZOverlay, ZPlacement, ZStorageUrl, getZSafeUrl } from "../common";
 import { ZContactAttributes } from "../contact-attribute";
+import { ZSurveyAudienceFilters } from "../contactability";
 import { type TI18nString, ZI18nString } from "../i18n";
 import { ZSegment } from "../segment";
 import { ZAllowedFileExtension } from "../storage";
@@ -877,6 +878,8 @@ export const ZSurveyBase = z.object({
   triggers: z.array(z.object({ actionClass: ZActionClass })),
   recontactDays: z.number().nullable(),
   displayLimit: z.number().nullable(),
+  priority: z.number().int().prefault(0),
+  audienceFilters: ZSurveyAudienceFilters.nullish(),
   welcomeCard: ZSurveyWelcomeCard,
   // TODO: Remove this once blocks are the single source of truth
   questions: ZSurveyQuestions.prefault([]).superRefine((questions, ctx) => {

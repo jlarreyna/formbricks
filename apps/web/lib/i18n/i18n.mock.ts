@@ -296,6 +296,8 @@ export const mockSurvey: TSurvey = {
   displayOption: "displayOnce",
   recontactDays: null,
   displayLimit: null,
+  priority: 0,
+  audienceFilters: null,
   autoClose: null,
   delay: 0,
   displayPercentage: null,

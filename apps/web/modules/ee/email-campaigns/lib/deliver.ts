@@ -7,6 +7,7 @@ import { getSurvey } from "@/lib/survey/service";
 import { getWorkspace } from "@/lib/workspace/service";
 import { getTranslate } from "@/lingodotdev/server";
 import { ApiErrorResponseV2 } from "@/modules/api/v2/types/api-error";
+import { evaluateContactabilityForSend } from "@/modules/ee/contactability/lib/evaluate-for-send";
 import { buildSurveyEmailForContact } from "@/modules/ee/email-campaigns/lib/build-survey-email";
 import { resolveContactIdsByEmail } from "@/modules/ee/email-campaigns/lib/contacts";
 import { sendEmail } from "@/modules/email";
@@ -26,14 +27,20 @@ export class EmailCampaignDeliveryError extends Error {
 export const finalizeCampaignIfDone = async (campaignId: string): Promise<void> => {
   const campaign = await prisma.emailCampaign.findUnique({
     where: { id: campaignId },
-    select: { totalRecipients: true, sentCount: true, failedCount: true, status: true },
+    select: {
+      totalRecipients: true,
+      sentCount: true,
+      failedCount: true,
+      skippedCount: true,
+      status: true,
+    },
   });
 
   if (!campaign || campaign.status !== "processing") {
     return;
   }
 
-  const processedCount = campaign.sentCount + campaign.failedCount;
+  const processedCount = campaign.sentCount + campaign.failedCount + campaign.skippedCount;
   if (processedCount < campaign.totalRecipients) {
     return;
   }
@@ -42,6 +49,28 @@ export const finalizeCampaignIfDone = async (campaignId: string): Promise<void> 
     where: { id: campaignId },
     data: { status: campaign.failedCount > 0 && campaign.sentCount === 0 ? "failed" : "completed" },
   });
+};
+
+const markRecipientSkipped = async (
+  recipientId: string,
+  campaignId: string,
+  contactId: string,
+  reason: string
+): Promise<void> => {
+  await prisma.$transaction([
+    prisma.emailCampaignRecipient.update({
+      where: { id: recipientId },
+      data: {
+        status: "skipped",
+        contactId,
+        error: reason.slice(0, 500),
+      },
+    }),
+    prisma.emailCampaign.update({
+      where: { id: campaignId },
+      data: { skippedCount: { increment: 1 } },
+    }),
+  ]);
 };
 
 export const markRecipientFailed = async (
@@ -112,6 +141,23 @@ export const deliverEmailCampaignRecipient = async (
 
   if (!contactId) {
     throw new EmailCampaignDeliveryError(`Unable to resolve a contact for recipient ${recipientId}`, true);
+  }
+
+  const contactability = await evaluateContactabilityForSend({
+    workspace,
+    survey,
+    contactId,
+  });
+
+  if (!contactability.allowed) {
+    const reason = contactability.reason ?? "Contactability rules blocked send";
+    await markRecipientSkipped(recipientId, campaign.id, contactId, reason);
+    await finalizeCampaignIfDone(campaign.id);
+    logger.info(
+      { recipientId, campaignId: campaign.id, contactId, reason, matchedRules: contactability.matchedRules },
+      "Email campaign recipient skipped by contactability rules"
+    );
+    return ok({ campaignId: campaign.id });
   }
 
   const t = await getTranslate(DEFAULT_LOCALE);

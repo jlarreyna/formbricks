@@ -80,6 +80,7 @@ export const mockWorkspace: TWorkspace = {
   name: "mock Workspace",
   organizationId: mockId,
   recontactDays: 0,
+  contactabilityRules: null,
   linkSurveyBranding: false,
   inAppSurveyBranding: false,
   placement: "bottomRight",
@@ -129,6 +130,7 @@ export const mockPrismaPerson: Prisma.ContactGetPayload<{
   include: typeof selectContact;
 }> = {
   id: mockId,
+  fatigueScore: 0,
   attributes: [
     {
       value: "de",
@@ -199,6 +201,8 @@ const baseSurveyProperties = {
   redirectUrl: "https://github.com/formbricks/formbricks",
   recontactDays: 3,
   displayLimit: 3,
+  priority: 0,
+  audienceFilters: null,
   welcomeCard: mockWelcomeCard,
   questions: [],
   blocks: mockBlocks as unknown as SurveyMock["blocks"],

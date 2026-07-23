@@ -20,6 +20,7 @@ describe("ZContact", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       workspaceId: "cld1234567890abcdef123456",
+      fatigueScore: 0,
     };
     const result = ZContact.parse(validContact);
     expect(result).toEqual(validContact);
@@ -31,6 +32,7 @@ describe("ZContact", () => {
       createdAt: "invalid-date",
       updatedAt: new Date(),
       workspaceId: "cld1234567890abcdef123456",
+      fatigueScore: 0,
     };
     expect(() => ZContact.parse(invalidContact)).toThrow(ZodError);
   });
@@ -85,6 +87,7 @@ describe("ZContactWithAttributes", () => {
       createdAt: new Date(),
       updatedAt: new Date(),
       workspaceId: "cld1234567890abcdef123456",
+      fatigueScore: 0,
       attributes: {
         email: "test@example.com",
         firstName: "John",

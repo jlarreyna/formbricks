@@ -115,7 +115,7 @@ export const WorkspaceLayout = async ({ layoutData, children }: WorkspaceLayoutP
   const billingHref = `/workspaces/${workspace.id}/settings/organization/billing`;
 
   return (
-    <div className="flex h-screen min-h-screen flex-col overflow-hidden">
+    <div className="flex h-dvh min-h-dvh flex-col overflow-hidden">
       {/* Hide the limits-reached toast for Hobby users in the response-warning test variant — the modal replaces it with richer copy + CTAs. */}
       {IS_FORMBRICKS_CLOUD && !isTrialing && !(isHobby && responseWarningVariant === "test") && (
         <LimitsReachedBanner organization={organization} responseCount={responseCount} />
@@ -169,7 +169,7 @@ export const WorkspaceLayout = async ({ layoutData, children }: WorkspaceLayoutP
             isAccessControlAllowed={isAccessControlAllowed}
             membershipRole={membership.role}
           />
-          <div className="flex-1 overflow-y-auto">{children}</div>
+          <div className="flex-1 overflow-y-auto overscroll-contain">{children}</div>
         </div>
       </div>
     </div>

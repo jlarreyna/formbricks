@@ -1,6 +1,6 @@
 "use client";
 
-import { SendIcon } from "lucide-react";
+import { SendHorizontalIcon, SendIcon } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { useTranslation } from "react-i18next";
@@ -9,7 +9,7 @@ import { cn } from "@/lib/cn";
 import { getContactsAction } from "@/modules/ee/contacts/actions";
 import { sendTransactionalEmailToContactAction } from "@/modules/ee/email-campaigns/actions";
 import type { TEmailCampaignSurveyOption } from "@/modules/ee/email-campaigns/components/email-campaign-form";
-import type { TEmailCampaignListItem } from "@/modules/ee/email-campaigns/lib/campaign";
+import { EmailTemplatePreview } from "@/modules/ee/email-campaigns/components/email-template-preview";
 import {
   DEFAULT_EMAIL_CAMPAIGN_TEMPLATE,
   interpolateTemplate,
@@ -42,7 +42,7 @@ interface TransactionalEmailFormProps {
   surveys: TEmailCampaignSurveyOption[];
   templates: TEmailCampaignTemplateListItem[];
   isSmtpConfigured: boolean;
-  onSent: (campaign: TEmailCampaignListItem) => void;
+  onSent: () => void;
 }
 
 export const TransactionalEmailForm = ({
@@ -68,14 +68,14 @@ export const TransactionalEmailForm = ({
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       setIsSearching(true);
-      getContactsAction({ workspaceId, offset: 0, searchValue: searchValue.trim() || undefined })
+      getContactsAction({ workspaceId, page: 1, searchValue: searchValue.trim() || undefined })
         .then((result) => {
-          if (!result?.data) {
+          if (!result?.data?.data) {
             setContacts([]);
             return;
           }
           setContacts(
-            result.data.map((contact) => {
+            result.data.data.map((contact) => {
               const attributes = Object.fromEntries(
                 Object.entries(contact.attributes).filter(
                   (entry): entry is [string, string] => typeof entry[1] === "string"
@@ -164,7 +164,7 @@ export const TransactionalEmailForm = ({
         } else {
           toast.error(t("workspace.email_campaigns.transactional_failed"));
         }
-        onSent(result.data);
+        onSent();
         setSubject("");
         setSelectedContact(null);
         setSearchValue("");
@@ -179,11 +179,16 @@ export const TransactionalEmailForm = ({
 
   return (
     <div className="flex flex-col gap-6 rounded-xl border border-slate-200 bg-white p-6 shadow-xs">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900">
-          {t("workspace.email_campaigns.transactional_title")}
-        </h2>
-        <p className="text-sm text-slate-500">{t("workspace.email_campaigns.transactional_description")}</p>
+      <div className="flex items-center gap-3">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-slate-900 text-white">
+          <SendHorizontalIcon className="size-4.5" />
+        </div>
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">
+            {t("workspace.email_campaigns.transactional_title")}
+          </h2>
+          <p className="text-sm text-slate-500">{t("workspace.email_campaigns.transactional_description")}</p>
+        </div>
       </div>
 
       {!isSmtpConfigured && (
@@ -192,133 +197,145 @@ export const TransactionalEmailForm = ({
         </Alert>
       )}
 
-      <div className="flex flex-col gap-2" ref={contactPickerRef}>
-        <Label htmlFor="transactional-contact-search">
-          {t("workspace.email_campaigns.transactional_contact_search_label")}
-        </Label>
-        <div className="relative">
-          <Input
-            id="transactional-contact-search"
-            value={searchValue}
-            onChange={(event) => handleSearchChange(event.target.value)}
-            onFocus={() => setIsDropdownOpen(true)}
-            placeholder={t("workspace.email_campaigns.transactional_contact_search_placeholder")}
-            autoComplete="off"
-          />
-          {isDropdownOpen && (
-            <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-slate-200 bg-white py-1 shadow-md">
-              {isSearching ? (
-                <li className="px-3 py-2 text-sm text-slate-500">{t("common.loading")}</li>
-              ) : contacts.length === 0 ? (
-                <li className="px-3 py-2 text-sm text-slate-500">
-                  {t("workspace.email_campaigns.transactional_contact_empty")}
-                </li>
-              ) : (
-                contacts.map((contact) => (
-                  <li key={contact.id}>
-                    <button
-                      type="button"
-                      disabled={!contact.email}
-                      onClick={() => handleSelectContact(contact)}
-                      className={cn(
-                        "flex w-full px-3 py-2 text-left text-sm",
-                        contact.email
-                          ? "text-slate-800 hover:bg-slate-50"
-                          : "cursor-not-allowed text-slate-400"
-                      )}>
-                      {contact.label}
-                    </button>
+      <div className="flex flex-col gap-4 border-t border-slate-100 pt-6">
+        <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          {t("workspace.email_campaigns.form_section_recipients")}
+        </p>
+
+        <div className="flex flex-col gap-2" ref={contactPickerRef}>
+          <Label htmlFor="transactional-contact-search">
+            {t("workspace.email_campaigns.transactional_contact_search_label")}
+          </Label>
+          <div className="relative">
+            <Input
+              id="transactional-contact-search"
+              value={searchValue}
+              onChange={(event) => handleSearchChange(event.target.value)}
+              onFocus={() => setIsDropdownOpen(true)}
+              placeholder={t("workspace.email_campaigns.transactional_contact_search_placeholder")}
+              autoComplete="off"
+            />
+            {isDropdownOpen && (
+              <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-slate-200 bg-white py-1 shadow-md">
+                {isSearching ? (
+                  <li className="px-3 py-2 text-sm text-slate-500">{t("common.loading")}</li>
+                ) : contacts.length === 0 ? (
+                  <li className="px-3 py-2 text-sm text-slate-500">
+                    {t("workspace.email_campaigns.transactional_contact_empty")}
                   </li>
-                ))
-              )}
-            </ul>
+                ) : (
+                  contacts.map((contact) => (
+                    <li key={contact.id}>
+                      <button
+                        type="button"
+                        disabled={!contact.email}
+                        onClick={() => handleSelectContact(contact)}
+                        className={cn(
+                          "flex w-full px-3 py-2 text-left text-sm",
+                          contact.email
+                            ? "text-slate-800 hover:bg-slate-50"
+                            : "cursor-not-allowed text-slate-400"
+                        )}>
+                        {contact.label}
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            )}
+          </div>
+          {selectedContact && !selectedContact.email && (
+            <Alert variant="warning" size="small">
+              {t("workspace.email_campaigns.transactional_contact_no_email")}
+            </Alert>
           )}
         </div>
-        {selectedContact && !selectedContact.email && (
-          <Alert variant="warning" size="small">
-            {t("workspace.email_campaigns.transactional_contact_no_email")}
-          </Alert>
-        )}
       </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>{t("workspace.email_campaigns.form_survey_label")}</Label>
-        <Select value={surveyId} onValueChange={setSurveyId}>
-          <SelectTrigger>
-            <SelectValue placeholder={t("workspace.email_campaigns.form_survey_placeholder")} />
-          </SelectTrigger>
-          <SelectContent>
-            {surveys.map((survey) => (
-              <SelectItem key={survey.id} value={survey.id}>
-                {survey.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      <div className="flex flex-col gap-4 border-t border-slate-100 pt-6">
+        <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          {t("workspace.email_campaigns.form_section_setup")}
+        </p>
 
-      <StylingTabs
-        id="transactional-email-mode"
-        label={t("workspace.email_campaigns.form_mode_label")}
-        options={[
-          { value: "embed" as TEmailCampaignMode, label: t("workspace.email_campaigns.form_mode_embed") },
-          { value: "link" as TEmailCampaignMode, label: t("workspace.email_campaigns.form_mode_link") },
-        ]}
-        defaultSelected={mode}
-        onChange={setMode}
-      />
-
-      <div className="flex flex-col gap-2">
-        <Label>{t("workspace.email_campaigns.form_template_label")}</Label>
-        <Select value={templateId} onValueChange={setTemplateId}>
-          <SelectTrigger>
-            <SelectValue placeholder={t("workspace.email_campaigns.form_template_placeholder")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={DEFAULT_TEMPLATE_VALUE}>
-              {t("workspace.email_campaigns.form_template_default")}
-            </SelectItem>
-            {templates.map((template) => (
-              <SelectItem key={template.id} value={template.id}>
-                {template.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="transactional-subject">{t("workspace.email_campaigns.form_subject_label")}</Label>
-        <Input
-          id="transactional-subject"
-          value={subject}
-          maxLength={200}
-          onChange={(event) => setSubject(event.target.value)}
-          placeholder={t("workspace.email_campaigns.form_subject_placeholder")}
-        />
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <Label>{t("workspace.email_campaigns.variables_label")}</Label>
-        <p className="text-xs text-slate-500">{t("workspace.email_campaigns.variables_hint")}</p>
-        <div className="flex flex-wrap gap-2">
-          {availableVariables.map((variable) => (
-            <code key={variable} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
-              {`{{${variable}}}`}
-            </code>
-          ))}
+        <div className="flex flex-col gap-2">
+          <Label>{t("workspace.email_campaigns.form_survey_label")}</Label>
+          <Select value={surveyId} onValueChange={setSurveyId}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("workspace.email_campaigns.form_survey_placeholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              {surveys.map((survey) => (
+                <SelectItem key={survey.id} value={survey.id}>
+                  {survey.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-2">
-        <Label>{t("workspace.email_campaigns.preview_label")}</Label>
-        <div
-          className="max-h-64 overflow-auto rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm"
-          dangerouslySetInnerHTML={{ __html: previewHtml }}
+        <StylingTabs
+          id="transactional-email-mode"
+          label={t("workspace.email_campaigns.form_mode_label")}
+          options={[
+            { value: "embed" as TEmailCampaignMode, label: t("workspace.email_campaigns.form_mode_embed") },
+            { value: "link" as TEmailCampaignMode, label: t("workspace.email_campaigns.form_mode_link") },
+          ]}
+          defaultSelected={mode}
+          onChange={setMode}
         />
       </div>
 
-      <div>
+      <div className="flex flex-col gap-4 border-t border-slate-100 pt-6">
+        <p className="text-xs font-semibold tracking-wide text-slate-400 uppercase">
+          {t("workspace.email_campaigns.form_section_message")}
+        </p>
+
+        <div className="flex flex-col gap-2">
+          <Label>{t("workspace.email_campaigns.form_template_label")}</Label>
+          <Select value={templateId} onValueChange={setTemplateId}>
+            <SelectTrigger>
+              <SelectValue placeholder={t("workspace.email_campaigns.form_template_placeholder")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={DEFAULT_TEMPLATE_VALUE}>
+                {t("workspace.email_campaigns.form_template_default")}
+              </SelectItem>
+              {templates.map((template) => (
+                <SelectItem key={template.id} value={template.id}>
+                  {template.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="transactional-subject">{t("workspace.email_campaigns.form_subject_label")}</Label>
+          <Input
+            id="transactional-subject"
+            value={subject}
+            maxLength={200}
+            onChange={(event) => setSubject(event.target.value)}
+            placeholder={t("workspace.email_campaigns.form_subject_placeholder")}
+          />
+        </div>
+
+        <div className="flex flex-col gap-2">
+          <Label>{t("workspace.email_campaigns.variables_label")}</Label>
+          <p className="text-xs text-slate-500">{t("workspace.email_campaigns.variables_hint")}</p>
+          <div className="flex flex-wrap gap-2">
+            {availableVariables.map((variable) => (
+              <code key={variable} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
+                {`{{${variable}}}`}
+              </code>
+            ))}
+          </div>
+        </div>
+
+        <EmailTemplatePreview previewHtml={previewHtml} />
+      </div>
+
+      <div className="border-t border-slate-100 pt-6">
         <Button onClick={handleSubmit} loading={isSubmitting} disabled={!canSubmit || isSubmitting}>
           <SendIcon />
           {t("workspace.email_campaigns.transactional_submit")}

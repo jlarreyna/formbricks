@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { ZColor, ZOverlay, ZPlacement } from "./common";
+import { ZContactabilityRules } from "./contactability";
 import { ZBaseStyling, ZLogo } from "./styling";
 
 export const ZWorkspaceStyling = ZBaseStyling.extend({
@@ -65,6 +66,7 @@ export const ZWorkspace = z.object({
     .max(365, {
       error: "Must be less than 365",
     }),
+  contactabilityRules: ZContactabilityRules.nullish(),
   inAppSurveyBranding: z.boolean(),
   linkSurveyBranding: z.boolean(),
   config: ZWorkspaceConfig,
@@ -90,6 +92,7 @@ export const ZWorkspaceUpdateInput = z.object({
   organizationId: z.string().optional(),
   highlightBorderColor: ZColor.nullish(),
   recontactDays: z.int().optional(),
+  contactabilityRules: ZContactabilityRules.nullish(),
   inAppSurveyBranding: z.boolean().optional(),
   linkSurveyBranding: z.boolean().optional(),
   config: ZWorkspaceConfig.optional(),
